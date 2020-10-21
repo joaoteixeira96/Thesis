@@ -1,1 +1,1 @@
-# Thesis-Tor-Correlation-Attack-Avoidance-
+# Strengthening of Tor Against Traffic Correlationwith K-Anonymity Input Circuits
