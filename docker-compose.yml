@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+  ##client:
+  ##build: ./src/SimpleTCPUDP/Client/Dockerfile
+  ##image: TCPClient:1
+  server:
+    build: ./src/SimpleTCPUDP/Server/Dockerfile
+    image: Server:1
+
