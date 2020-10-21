@@ -1,1 +1,1 @@
-# Strengthening of Tor Against Traffic Correlationwith K-Anonymity Input Circuits
+# Strengthening of Tor Against Traffic Correlation with K-Anonymity Input Circuits
