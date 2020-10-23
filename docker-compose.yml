@@ -1,9 +1,32 @@
 version: "3.8"
 services:
-  ##client:
-  ##build: ./src/SimpleTCPUDP/Client/Dockerfile
-  ##image: TCPClient:1
-  server:
-    build: ./src/SimpleTCPUDP/Server/Dockerfile
-    image: Server:1
-
+  TIR_MMRT:
+    image: tir_mmrt:latest
+    build:
+      context: .
+      dockerfile: ./TIR_MMRT/Dockerfile
+    networks:
+      tir_mmrt:
+        ipv4_address: 172.28.0.5
+#  TCPClient:
+#    image: tcpclient:latest
+#    build:
+#      context: .
+#      dockerfile: ./TCPClient/Dockerfile
+#    networks:
+#      tir_mmrt:
+#        ipv4_address: 172.28.0.6
+#  UDPClient:
+#    image: udpclient:latest
+#    build:
+#      context: .
+#      dockerfile: ./UDPClient/Dockerfile
+#    networks:
+#      testing_net:
+#        ipv4_address: 172.28.0.3
+networks:
+  tir_mmrt:
+    ipam:
+      driver: default
+      config:
+          - subnet: 172.28.0.0/16
