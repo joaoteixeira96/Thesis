@@ -1,31 +1,28 @@
 version: "3.8"
 services:
-  TIR_MMRT:
-    image: tir_mmrt:latest
+  tirmmrt:
     build:
       context: .
       dockerfile: ./TIR_MMRT/Dockerfile
     networks:
-      tir_mmrt:
+      thesis:
         ipv4_address: 172.28.0.5
-#  TCPClient:
-#    image: tcpclient:latest
-#    build:
-#      context: .
-#      dockerfile: ./TCPClient/Dockerfile
-#    networks:
-#      tir_mmrt:
-#        ipv4_address: 172.28.0.6
-#  UDPClient:
-#    image: udpclient:latest
-#    build:
-#      context: .
-#      dockerfile: ./UDPClient/Dockerfile
-#    networks:
-#      testing_net:
-#        ipv4_address: 172.28.0.3
+  tcpclient:
+    build:
+      context: .
+      dockerfile: ./TCPClient/Dockerfile
+    networks:
+      thesis:
+        ipv4_address: 172.28.0.4
+  udpclient:
+    build:
+      context: .
+      dockerfile: ./UDPClient/Dockerfile
+    networks:
+      thesis:
+        ipv4_address: 172.28.0.3
 networks:
-  tir_mmrt:
+  thesis:
     ipam:
       driver: default
       config:

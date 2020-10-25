@@ -47,7 +47,7 @@ RUN set -eux; \
 ENV JAVA_HOME=/opt/java/openjdk \
     PATH="/opt/java/openjdk/bin:$PATH"
 
-EXPOSE 1235
+EXPOSE 1237
 WORKDIR /usr/src/tcpclient
 COPY /TCPClient/src /usr/src/tcpclient/
 RUN javac ./TCPClient.java
