@@ -47,6 +47,27 @@ RUN set -eux; \
 ENV JAVA_HOME=/opt/java/openjdk \
     PATH="/opt/java/openjdk/bin:$PATH"
 
+RUN apt-get update
+RUN apt-get upgrade -y
+
+RUN apt-get -y install build-essential wget
+RUN apt-get -y install openssl libssl-dev
+
+ENV STUNNEL_VERSION 5.57
+
+RUN wget -O - ftp://ftp.stunnel.org/stunnel/archive/5.x/stunnel-$STUNNEL_VERSION.tar.gz | tar -C /usr/local/src -zxv
+
+WORKDIR /etc/stunnel/
+
+ADD TIR_MMRT/stunnel/tirmmrt.conf /etc/stunnel/tirmmrt.conf
+ADD TIR_MMRT/stunnel/cert.pem /etc/stunnel/stunnel.pem
+ADD TIR_MMRT/stunnel/key.pem /etc/stunnel/stunnel.key
+
+# Build stunnel
+RUN cd /usr/local/src/stunnel-$STUNNEL_VERSION && ./configure && make && make install
+
+CMD ["stunnel", "/etc/stunnel/tirmmrt.conf"]
+
 EXPOSE 1234
 WORKDIR /usr/src/server
 COPY TIR_MMRT/src /usr/src/server/

@@ -22,7 +22,7 @@ public class TCPClient {
             clientSentence = inFromUser.readLine();
             outToServer.writeBytes(clientSentence + "\n");
             serverSentence = inFromServer.readLine();
-            System.out.println("FROM SERVER: " + serverSentence);
+            System.out.println("FROM SERVER "+ clientSocket.getRemoteSocketAddress()+": " + serverSentence);
         }
         clientSocket.close();
         outToServer.close();
