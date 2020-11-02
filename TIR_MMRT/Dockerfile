@@ -57,16 +57,13 @@ ENV STUNNEL_VERSION 5.57
 
 RUN wget -O - ftp://ftp.stunnel.org/stunnel/archive/5.x/stunnel-$STUNNEL_VERSION.tar.gz | tar -C /usr/local/src -zxv
 
-WORKDIR /etc/stunnel/
-
-ADD TIR_MMRT/stunnel/tirmmrt.conf /etc/stunnel/tirmmrt.conf
-ADD TIR_MMRT/stunnel/cert.pem /etc/stunnel/stunnel.pem
-ADD TIR_MMRT/stunnel/key.pem /etc/stunnel/stunnel.key
+RUN openssl req -nodes -new -x509 -keyout /etc/ssl/key.pem -out /etc/ssl/cert.pem -days 365 -subj "/C=UK/ST=Warwickshire/L=Leamington/O=OrgName/OU=IT Department/CN=example.com"
+ADD TIR_MMRT/stunnel/tirmmrt.conf /usr/local/etc/stunnel/stunnel.conf
 
 # Build stunnel
 RUN cd /usr/local/src/stunnel-$STUNNEL_VERSION && ./configure && make && make install
 
-CMD ["stunnel", "/etc/stunnel/tirmmrt.conf"]
+CMD ["stunnel"]
 
 EXPOSE 1234
 WORKDIR /usr/src/server
