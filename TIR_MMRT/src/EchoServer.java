@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
@@ -12,6 +9,7 @@ import java.util.concurrent.Executors;
 
 public class EchoServer {
     public static final int PORT = 1234;
+
     public static void main(String[] args) {
 
         //TODO - create thread for each socket connection with binding port
@@ -24,30 +22,10 @@ public class EchoServer {
                 System.out.println("Listening on TCP port 1234, Say hi!");
                 while (true) {
                     final Socket socket = server.accept();
+                    System.out.println("TCP connection " + socket.getInetAddress() + ":" + socket.getPort());
                     executor.execute(() -> {
-                        String inputLine = "";
-                        try (PrintWriter out = new PrintWriter(
-                                socket.getOutputStream(), true);
-                             BufferedReader in = new BufferedReader(
-                                     new InputStreamReader(socket
-                                             .getInputStream()))) {
-                            while (!inputLine.equals("!quit")
-                                    && (inputLine = in
-                                    .readLine()) != null) {
-                                System.out.println("TCP: " +socket.toString()
-                                        + ": " + inputLine);
-                                // Echo server...
-                                out.println(inputLine);
-                            }
-                        } catch (IOException ioe) {
-                            ioe.printStackTrace();
-                        } finally {
-                            try {
-                                socket.close();
-                            } catch (IOException ioe) {
-                                ioe.printStackTrace();
-                            }
-                        }
+                        ClassServer cs = new ClassServer(socket);
+                        cs.exec();
                     });
                 }
             } catch (IOException ioe) {
@@ -70,7 +48,7 @@ public class EchoServer {
                 System.out.println("Listening on UDP port 1234, Say hi!");
                 while (true) {
                     socket.receive(packet);
-                    System.out.println("UDP: "+packet.getSocketAddress().toString()
+                    System.out.println("UDP: " + packet.getSocketAddress().toString()
                             + ": " + new String(buf, StandardCharsets.UTF_8));
                     // Echo server
                     socket.send(packet);

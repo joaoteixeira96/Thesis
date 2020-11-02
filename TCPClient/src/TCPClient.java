@@ -3,6 +3,7 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Scanner;
 
 public class TCPClient {
     public static final int SERVER_PORT = 1234;
@@ -13,21 +14,24 @@ public class TCPClient {
 
     public static void main(String[] argv) throws Exception {
         String clientSentence = "";
-        String serverSentence;
-        BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
+        Scanner inFromUser = new Scanner(System.in);
         Socket clientSocket = new Socket(SERVERHOST, SERVER_PORT);
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
         BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        while (!clientSentence.equalsIgnoreCase(QUIT)) {
-            clientSentence = inFromUser.readLine();
+        while (true) {
+            String input= inFromUser.nextLine();
+            if(input.equalsIgnoreCase("quit")){
+                clientSocket.close();
+                outToServer.close();
+                inFromServer.close();
+                inFromUser.close();
+            return; }
+            clientSentence = "GET "+input+ " HTTP/1.1";
             outToServer.writeBytes(clientSentence + "\n");
-            serverSentence = inFromServer.readLine();
-            System.out.println("FROM SERVER "+ clientSocket.getRemoteSocketAddress()+": " + serverSentence);
+            String inputLine;
+            while ((inputLine = inFromServer.readLine()).length()>0) System.out.println(inputLine);
         }
-        clientSocket.close();
-        outToServer.close();
-        inFromServer.close();
-        inFromUser.close();
+
     }
 }
 
