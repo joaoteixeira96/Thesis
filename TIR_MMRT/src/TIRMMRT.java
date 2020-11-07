@@ -54,12 +54,14 @@ public class TIRMMRT {
                 byte[] buf = new byte[socket.getReceiveBufferSize()];
                 DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
-                System.out.println("Listening on UDP port 1234, Say hi!");
+                System.out.println("Listening on UDP port " + PORT + ", waiting for file request!");
                 while (true) {
                     socket.receive(packet);
+                    String filePath = new String(buf, StandardCharsets.UTF_8);
                     System.out.println(packet.getSocketAddress().toString()
-                            + ": " + new String(buf, StandardCharsets.UTF_8));
-                    // Echo server
+                            + ": " + filePath);
+                    ClassServer cs = new ClassServer();
+                    packet.setData(cs.execUDP(filePath));
                     socket.send(packet);
                 }
             } catch (IOException ioe) {

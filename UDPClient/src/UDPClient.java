@@ -21,61 +21,23 @@ class UDPClient {
 
     public static final String LOCALHOST = "127.0.0.1";//"172.28.0.5";
     private static final int BUFFER_SIZE = 1024;
-    private static final int MAX_APP_READ_LOOPS = 10;
 
     public static void main(String[] args) throws Exception {
         Scanner inFromUser = new Scanner(System.in);
         DatagramSocket clientSocket = new DatagramSocket(CLIENT_PORT);
         InetAddress IPAddress = InetAddress.getByName(LOCALHOST);
-        byte[] path;
-
-        //Initialize
-        DTLSOverDatagram dtls = new DTLSOverDatagram();
-        DatagramPacket initializePacketSend = new DatagramPacket(new byte[BUFFER_SIZE], BUFFER_SIZE, IPAddress, SERVER_PORT);
-        clientSocket.send(initializePacketSend);
-        InetSocketAddress isa = new InetSocketAddress(initializePacketSend.getAddress(), initializePacketSend.getPort());
-        SSLEngine engine = dtlsSecure(clientSocket, isa, dtls);
-
         while (true) {
-            String input = inFromUser.nextLine();
-            path = ("GET " + input + " HTTP/1.1").getBytes();
-
             //send
-            ByteBuffer bf = ByteBuffer.wrap(path,0,path.length);
-
-            List<DatagramPacket> packets =
-                    dtls.produceApplicationPackets(engine, bf, isa);
-            bf.flip();
-            for (DatagramPacket p : packets) {
-                clientSocket.send(p);
-            }
-
+            String input = inFromUser.nextLine();
+            byte [] path = ("GET " + input + " HTTP/1.1").getBytes();
+            DatagramPacket sendPacket = new DatagramPacket(path, path.length, IPAddress, SERVER_PORT);
+            clientSocket.send(sendPacket);
             //receive
-                byte[] buf = new byte[BUFFER_SIZE];
-                DatagramPacket receivePacket = new DatagramPacket(buf, buf.length);
-                clientSocket.receive(receivePacket);
-
-                ByteBuffer netBuffer = ByteBuffer.wrap(buf, 0, receivePacket.getLength());
-                ByteBuffer recBuffer = ByteBuffer.allocate(BUFFER_SIZE);
-
-                SSLEngineResult rs = engine.unwrap(netBuffer, recBuffer);
-                recBuffer.flip();
-                System.out.println(rs.getStatus());
-                if (recBuffer.remaining() != 0) {
-                    //dtls.printHex("File request path: ", recBuffer);
-                    System.out.println(new String(recBuffer.array()));
-                }
-
-
-
-
-            //socket.receive(packet);
-            //System.out.println("UDP: " + packet.getSocketAddress().toString()
-            //        + ": " + new String(buf, StandardCharsets.UTF_8));
-            // Echo server
-            // Note: have not consider the packet loses
-            //socket.send(packet);
-
+            byte[] receiveData = new byte[clientSocket.getReceiveBufferSize()];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+            clientSocket.receive(receivePacket);
+            String receivedPacket = new String(receivePacket.getData());
+            System.out.println("FROM SERVER:" + receivedPacket);
         }
     }
     private static SSLEngine dtlsSecure(DatagramSocket socket, InetSocketAddress isa, DTLSOverDatagram dtls) throws Exception {
