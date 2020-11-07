@@ -1,6 +1,8 @@
 version: "3.8"
 services:
   tirmmrt:
+    ports:
+    - "1234"
     build:
       context: .
       dockerfile: ./TIR_MMRT/Dockerfile
@@ -8,6 +10,8 @@ services:
       thesis:
         ipv4_address: 172.28.0.5
   tcpclient:
+    ports:
+      - "1237"
     build:
       context: .
       dockerfile: ./TCPClient/Dockerfile
@@ -15,6 +19,8 @@ services:
       thesis:
         ipv4_address: 172.28.0.4
   udpclient:
+    ports:
+      - "1236"
     build:
       context: .
       dockerfile: ./UDPClient/Dockerfile

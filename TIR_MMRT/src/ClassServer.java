@@ -20,30 +20,7 @@ public class ClassServer {
         socket = s;
     }
 
-    /**
-     * Returns an array of bytes containing the bytes for
-     * the file represented by the argument <b>path</b>.
-     *
-     * @return the bytes for the file
-     * @throws FileNotFoundException if the file corresponding
-     *                               to <b>path</b> could not be loaded.
-     * @throws IOException           if error occurs reading the class
-     */
-    private byte[] getBytes(String path)
-            throws IOException {
-        System.out.println("reading: " + path);
-        File f = new File(path);
-        int length = (int) (f.length());
-        if (length == 0) {
-            throw new IOException("File length is zero: " + path);
-        } else {
-            FileInputStream fin = new FileInputStream(f);
-            DataInputStream in = new DataInputStream(fin);
-
-            byte[] bytecodes = new byte[length];
-            in.readFully(bytecodes);
-            return bytecodes;
-        }
+    protected ClassServer() {
     }
 
     /**
@@ -52,7 +29,7 @@ public class ClassServer {
      * and sends back the bytes for the file (or error
      * if the file is not found or the response was malformed).
      */
-    public void exec() {
+    public void execTCP() {
         try {
             OutputStream rawOut = socket.getOutputStream();
 
@@ -111,6 +88,19 @@ public class ClassServer {
             } catch (IOException e) {
             }
         }
+    }
+
+    public byte[] execUDP(String path) throws IOException {
+        StringTokenizer parse = new StringTokenizer(path);
+        String method = parse.nextToken().toUpperCase(); // we get the HTTP method of the client
+        // we get file requested
+        String fileRequested = parse.nextToken();
+
+        File file = new File(fileRequested);
+        int fileLength = (int) file.length();
+
+        byte[] fileData = readFileData(file, fileLength);
+        return fileData;
     }
 
     private byte[] readFileData(File file, int fileLength) throws IOException {

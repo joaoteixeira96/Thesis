@@ -63,10 +63,8 @@ ADD TIR_MMRT/stunnel/tirmmrt.conf /usr/local/etc/stunnel/stunnel.conf
 # Build stunnel
 RUN cd /usr/local/src/stunnel-$STUNNEL_VERSION && ./configure && make && make install
 
-CMD ["stunnel"]
+WORKDIR /usr/src/tirmmrt
+COPY TIR_MMRT/src /usr/src/tirmmrt/
+RUN javac ./TIRMMRT.java
 
-EXPOSE 1234
-WORKDIR /usr/src/server
-COPY TIR_MMRT/src /usr/src/server/
-RUN javac ./EchoServer.java
-CMD ["java","EchoServer"]
+CMD ["stunnel"]

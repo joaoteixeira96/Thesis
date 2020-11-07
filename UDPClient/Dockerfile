@@ -63,10 +63,10 @@ ADD UDPClient/stunnel/udpclient.conf /usr/local/etc/stunnel/stunnel.conf
 # Build stunnel
 RUN cd /usr/local/src/stunnel-$STUNNEL_VERSION && ./configure && make && make install
 
-CMD ["stunnel"]
 
 EXPOSE 1236
 WORKDIR /usr/src/udpclient
 COPY /UDPClient/src /usr/src/udpclient/
 RUN javac ./UDPClient.java
-#CMD ["java","UDPClient"]
+
+CMD ["stunnel"]
