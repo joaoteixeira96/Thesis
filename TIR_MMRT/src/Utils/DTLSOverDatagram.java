@@ -140,9 +140,10 @@ public class DTLSOverDatagram {
     }
 
     // handshake
-    public void handshake(SSLEngine engine, DatagramSocket socket,
-                          SocketAddress peerAddr, String side) throws Exception {
+    public InetSocketAddress handshake(SSLEngine engine, DatagramSocket socket,
+                                       SocketAddress peerAddr, String side) throws Exception {
 
+        InetSocketAddress isa = null;
         boolean endLoops = false;
         int loops = MAX_HANDSHAKE_LOOPS;
         engine.beginHandshake();
@@ -167,6 +168,7 @@ public class DTLSOverDatagram {
                     DatagramPacket packet = new DatagramPacket(buf, buf.length);
                     try {
                         socket.receive(packet);
+                        isa = new InetSocketAddress(packet.getAddress(), packet.getPort());
                     } catch (SocketTimeoutException ste) {
                         log(side, "Warning: " + ste);
 
@@ -232,7 +234,7 @@ public class DTLSOverDatagram {
             } else if (hs == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
                 List<DatagramPacket> packets = new ArrayList<>();
                 boolean finished = produceHandshakePackets(
-                        engine, peerAddr, side, packets);
+                        engine, isa, side, packets);
 
                 for (DatagramPacket p : packets) {
                     socket.send(p);
@@ -278,6 +280,7 @@ public class DTLSOverDatagram {
         if (hs != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
             throw new Exception("Unexpected handshake status " + hs);
         }
+        return isa;
     }
 
     // deliver application data
@@ -294,9 +297,9 @@ public class DTLSOverDatagram {
     }
 
     // receive application data
-    public void receiveAppData(SSLEngine engine,
-                               DatagramSocket socket, ByteBuffer expectedApp) throws Exception {
-
+    public ByteBuffer receiveAppData(SSLEngine engine,
+                                     DatagramSocket socket, ByteBuffer expectedApp) throws Exception {
+        ByteBuffer recBuffer = null;
         int loops = MAX_APP_READ_LOOPS;
         while ((serverException == null) && (clientException == null)) {
             if (--loops < 0) {
@@ -308,7 +311,7 @@ public class DTLSOverDatagram {
             DatagramPacket packet = new DatagramPacket(buf, buf.length);
             socket.receive(packet);
             ByteBuffer netBuffer = ByteBuffer.wrap(buf, 0, packet.getLength());
-            ByteBuffer recBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+            recBuffer = ByteBuffer.allocate(BUFFER_SIZE);
             SSLEngineResult rs = engine.unwrap(netBuffer, recBuffer);
             recBuffer.flip();
             if (recBuffer.remaining() != 0) {
@@ -320,6 +323,7 @@ public class DTLSOverDatagram {
                 break;
             }
         }
+        return recBuffer;
     }
 
     // produce handshake packets

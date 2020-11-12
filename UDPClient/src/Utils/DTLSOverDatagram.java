@@ -141,8 +141,7 @@ public class DTLSOverDatagram {
 
     // handshake
     public void handshake(SSLEngine engine, DatagramSocket socket,
-                          SocketAddress peerAddr, String side) throws Exception {
-
+                                       SocketAddress peerAddr, String side) throws Exception {
         boolean endLoops = false;
         int loops = MAX_HANDSHAKE_LOOPS;
         engine.beginHandshake();
