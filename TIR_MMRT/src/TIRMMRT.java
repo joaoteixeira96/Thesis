@@ -1,15 +1,17 @@
+import Utils.ClassServer;
 import Utils.DTLSOverDatagram;
-import sun.security.util.HexDumpEncoder;
 
 import javax.net.ServerSocketFactory;
-import javax.net.ssl.*;
-import java.io.FileInputStream;
-import java.io.IOException;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLServerSocketFactory;
+import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
-import java.util.List;
+import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -27,15 +29,14 @@ public class TIRMMRT {
         // TCP
         new Thread(() -> {
             ExecutorService executor = null;
-            try (ServerSocket server = (args.length == 0) ? new ServerSocket(PORT) : getSecureSocket()) {
+            try (ServerSocket server = (args.length == 0) ? new ServerSocket(PORT) : getSecureSocketTLS()) {
                 executor = Executors.newFixedThreadPool(5);
                 System.out.println("Listening on TCP port " + PORT + ", waiting for file request!");
                 while (true) {
                     final Socket socket = server.accept();
                     System.out.println("TCP connection " + socket.getInetAddress() + ":" + socket.getPort());
                     executor.execute(() -> {
-                        ClassServer cs = new ClassServer(socket);
-                        cs.execTCP();
+                        doTCP_TLS(socket);
                     });
                 }
             } catch (IOException ioe) {
@@ -55,9 +56,7 @@ public class TIRMMRT {
                 System.out.println("Listening on UDP port " + PORT + ", waiting for file request!");
                 while (true) {
                     if ((args.length == 0)) {
-                        byte[] buf = new byte[socket.getReceiveBufferSize()];
-                        DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                        doUDP(socket, packet, buf);
+                        doUDP(socket);
                     } else {
                         doDTLS(socket);
                     }
@@ -71,35 +70,108 @@ public class TIRMMRT {
         }).start();
     }
 
-    private static ServerSocket getSecureSocket() throws IOException {
+    private static void doTCP_TLS(Socket socket) {
+        try {
+            OutputStream rawOut = socket.getOutputStream();
+
+            PrintWriter out = new PrintWriter(
+                    new BufferedWriter(
+                            new OutputStreamWriter(
+                                    rawOut)));
+            try {
+                // get path to class file from header
+                BufferedReader in =
+                        new BufferedReader(
+                                new InputStreamReader(socket.getInputStream()));
+                while (true) {
+                    String filePath = in.readLine();
+
+                    System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
+
+                    byte[] fileData = ClassServer.retrieveFile(filePath);
+
+                    // send HTTP Headers
+                    out.println("HTTP/1.1 200 OK");
+                    out.println("Date: " + new Date());
+                    out.println("Content-type: " + getContentType(filePath));
+                    out.println("Content-length: " + fileData.length);
+                    out.println(); // blank line between headers and content, very important !
+                    rawOut.write(fileData, 0, fileData.length);
+                    rawOut.flush();
+                    out.flush(); // flush character output stream buffer
+
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                // write out error response
+                out.println("HTTP/1.0 400 " + e.getMessage() + "\r\n");
+                out.println("Content-Type: text/html\r\n\r\n");
+                out.flush();
+            }
+
+
+        } catch (IOException ex) {
+            // eat exception (could log error to log file, but
+            // write out to stdout for now).
+            System.out.println("error writing response: " + ex.getMessage());
+            ex.printStackTrace();
+
+        } finally {
+            try {
+                socket.close();
+            } catch (IOException e) {
+            }
+        }
+    }
+
+    private static ServerSocket getSecureSocketTLS() throws IOException {
         ServerSocketFactory ssf = getServerSocketFactory();
         ServerSocket ss = ssf.createServerSocket(PORT);
         return ss;
     }
 
-    private static void doUDP(DatagramSocket socket, DatagramPacket packet, byte[] buf) throws IOException {
+    private static void doUDP(DatagramSocket socket) throws IOException {
+        byte[] buf = new byte[socket.getReceiveBufferSize()];
+        DatagramPacket packet = new DatagramPacket(buf, buf.length);
         socket.receive(packet);
         String filePath = new String(buf, StandardCharsets.UTF_8);
         System.out.println(packet.getSocketAddress().toString()
                 + ": " + filePath);
-        ClassServer cs = new ClassServer();
-        packet.setData(cs.execUDP(filePath));
+        byte[] sendData = buildRequest(filePath, ClassServer.retrieveFile(filePath), null);
+        packet.setData(sendData);
         socket.send(packet);
     }
-    
+
 
     private static void doDTLS(DatagramSocket socket) {
         try {
             DTLSOverDatagram dtls = new DTLSOverDatagram();
             SSLEngine engine = dtls.createSSLEngine(false);
             InetSocketAddress isa = dtls.handshake(engine, socket, null, "Server");
-            ByteBuffer fileData = receiveAppData(engine, socket);
-            deliverAppData(dtls, engine, socket, fileData, isa);
+            ByteBuffer fileData = dtls.receiveAppData(engine, socket);
+            byte[] sendData = buildRequest("", fileData.array(), null);
+            dtls.deliverAppData(engine, socket, ByteBuffer.wrap(sendData), isa);
+
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Unable to do DTLS");
         }
 
+    }
+
+    private static byte[] buildRequest(String filePath, byte[] file, String error) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        if (error == null) {
+            baos.write(("HTTP/1.1 200 OK" + "\r\n").getBytes());
+            baos.write(("Date: " + new Date() + "\r\n").getBytes());
+            baos.write(("Content-type: " + getContentType(filePath) + "\r\n").getBytes());
+            baos.write(("Content-length: " + file.length + "\r\n\r\n").getBytes());
+            baos.write(file);
+        } else {
+            baos.write(("HTTP/1.0 400 " + error + "\r\n").getBytes());
+            baos.write(("Content-Type: text/html\r\n\r\n").getBytes());
+        }
+        return baos.toByteArray();
     }
 
     private static ServerSocketFactory getServerSocketFactory() {
@@ -128,60 +200,10 @@ public class TIRMMRT {
         return null;
     }
 
-    private static SSLEngine doDTLSHandshake(DTLSOverDatagram dtls, DatagramSocket socket, InetSocketAddress isa) throws Exception {
-        SSLEngine engine = dtls.createSSLEngine(false);
-        dtls.handshake(engine, socket, isa, "Server");
-        return engine;
-    }
-
-    public static ByteBuffer receiveAppData(SSLEngine engine,
-                                            DatagramSocket socket) throws Exception {
-        ByteBuffer recBuffer = null;
-        int loops = MAX_APP_READ_LOOPS;
-        while (true) {
-            if (--loops < 0) {
-                throw new RuntimeException(
-                        "Too much loops to receive application data");
-            }
-            byte[] buf = new byte[BUFFER_SIZE];
-            DatagramPacket packet = new DatagramPacket(buf, buf.length);
-            socket.receive(packet);
-            ByteBuffer netBuffer = ByteBuffer.wrap(buf, 0, packet.getLength());
-            recBuffer = ByteBuffer.allocate(BUFFER_SIZE);
-            SSLEngineResult rs = engine.unwrap(netBuffer, recBuffer);
-            recBuffer.flip();
-            if (recBuffer.remaining() != 0) {
-                printHex("Received application data", recBuffer);
-                ClassServer cs = new ClassServer();
-                return ByteBuffer.wrap(cs.execUDP(new String(recBuffer.array(), StandardCharsets.UTF_8)));
-                //break;
-            }
-        }
-    }
-
-    static void deliverAppData(DTLSOverDatagram dtls, SSLEngine engine, DatagramSocket socket,
-                               ByteBuffer appData, SocketAddress peerAddr) throws Exception {
-
-        // Note: have not consider the packet loses
-        List<DatagramPacket> packets =
-                dtls.produceApplicationPackets(engine, appData, peerAddr);
-        appData.flip();
-        for (DatagramPacket p : packets) {
-            socket.send(p);
-        }
-    }
-
-    public final static void printHex(String prefix, ByteBuffer bb) {
-        HexDumpEncoder dump = new HexDumpEncoder();
-
-        synchronized (System.out) {
-            System.out.println(prefix);
-            try {
-                dump.encodeBuffer(bb.slice(), System.out);
-            } catch (Exception e) {
-                // ignore
-            }
-            System.out.flush();
-        }
+    private static String getContentType(String fileRequested) {
+        if (fileRequested.endsWith(".htm") || fileRequested.endsWith(".html"))
+            return "text/html";
+        else
+            return "text/plain";
     }
 }

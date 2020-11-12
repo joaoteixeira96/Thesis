@@ -40,6 +40,7 @@ import javax.net.ssl.*;
 import java.io.FileInputStream;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,9 +57,8 @@ public class DTLSOverDatagram {
 
     private static int MAX_HANDSHAKE_LOOPS = 200;
     private static int MAX_APP_READ_LOOPS = 60;
-    private static int SOCKET_TIMEOUT = 10 * 1000; // in millis
-    private static int BUFFER_SIZE = 1024;
-    private static int MAXIMUM_PACKET_SIZE = 1024;
+    private static int BUFFER_SIZE = 32768;
+    private static int MAXIMUM_PACKET_SIZE = 32768;
 
     /*
      * The following is to set up the keystores.
@@ -69,58 +69,6 @@ public class DTLSOverDatagram {
     private static String trustFilename = "./src/keystore/cacerts";
     private static Exception clientException = null;
     private static Exception serverException = null;
-
-    private static ByteBuffer serverApp =
-            ByteBuffer.wrap("Hi Client, I'm Server".getBytes());
-    private static ByteBuffer clientApp =
-            ByteBuffer.wrap("Hi Server, I'm Client".getBytes());
-
-    /*
-     * =============================================================
-     * The test case
-     */
-    public static void main(String[] args) throws Exception {
-        DTLSOverDatagram testCase = new DTLSOverDatagram();
-        testCase.runTest(testCase);
-    }
-
-    /*
-     * Define the server side of the test.
-     */
-    public void doServerSide(DatagramSocket socket, InetSocketAddress clientSocketAddr)
-            throws Exception {
-
-        // create SSLEngine
-        SSLEngine engine = createSSLEngine(false);
-
-        // handshaking
-        handshake(engine, socket, clientSocketAddr, "Server");
-
-        // read client application data
-        receiveAppData(engine, socket, clientApp);
-
-        // write server application data
-        deliverAppData(engine, socket, serverApp, clientSocketAddr);
-    }
-
-    /*
-     * Define the client side of the test.
-     */
-    public void doClientSide(DatagramSocket socket, InetSocketAddress serverSocketAddr)
-            throws Exception {
-
-        // create SSLEngine
-        SSLEngine engine = createSSLEngine(true);
-
-        // handshaking
-        handshake(engine, socket, serverSocketAddr, "Client");
-
-        // write client application data
-        deliverAppData(engine, socket, clientApp, serverSocketAddr);
-
-        // read server application data
-        receiveAppData(engine, socket, serverApp);
-    }
 
     /*
      * =============================================================
@@ -280,8 +228,8 @@ public class DTLSOverDatagram {
     }
 
     // deliver application data
-    void deliverAppData(SSLEngine engine, DatagramSocket socket,
-                        ByteBuffer appData, SocketAddress peerAddr) throws Exception {
+    public void deliverAppData(SSLEngine engine, DatagramSocket socket,
+                               ByteBuffer appData, SocketAddress peerAddr) throws Exception {
 
         // Note: have not consider the packet loses
         List<DatagramPacket> packets =
@@ -293,8 +241,8 @@ public class DTLSOverDatagram {
     }
 
     // receive application data
-    void receiveAppData(SSLEngine engine,
-                        DatagramSocket socket, ByteBuffer expectedApp) throws Exception {
+    public void receiveAppData(SSLEngine engine,
+                        DatagramSocket socket) throws Exception {
 
         int loops = MAX_APP_READ_LOOPS;
         while ((serverException == null) && (clientException == null)) {
@@ -311,11 +259,7 @@ public class DTLSOverDatagram {
             SSLEngineResult rs = engine.unwrap(netBuffer, recBuffer);
             recBuffer.flip();
             if (recBuffer.remaining() != 0) {
-                printHex("Received application data", recBuffer);
-                if (!recBuffer.equals(expectedApp)) {
-                    System.out.println("Engine status is " + rs);
-                    throw new Exception("Not the right application data");
-                }
+                System.out.println(new String(recBuffer.array(), StandardCharsets.UTF_8));
                 break;
             }
         }
@@ -500,146 +444,6 @@ public class DTLSOverDatagram {
         return sslCtx;
     }
 
-
-    /*
-     * =============================================================
-     * The remainder is support stuff to kickstart the testing.
-     */
-
-    // Will the handshaking and application data exchange succeed?
-    public boolean isGoodJob() {
-        return true;
-    }
-
-    public final void runTest(DTLSOverDatagram testCase) throws Exception {
-        try (DatagramSocket serverSocket = new DatagramSocket();
-             DatagramSocket clientSocket = new DatagramSocket()) {
-
-            serverSocket.setSoTimeout(SOCKET_TIMEOUT);
-            clientSocket.setSoTimeout(SOCKET_TIMEOUT);
-
-            InetSocketAddress serverSocketAddr = new InetSocketAddress(
-                    InetAddress.getLocalHost(), serverSocket.getLocalPort());
-
-            InetSocketAddress clientSocketAddr = new InetSocketAddress(
-                    InetAddress.getLocalHost(), clientSocket.getLocalPort());
-
-            ExecutorService pool = Executors.newFixedThreadPool(2);
-            Future<String> server, client;
-
-            try {
-                server = pool.submit(new ServerCallable(
-                        testCase, serverSocket, clientSocketAddr));
-                client = pool.submit(new ClientCallable(
-                        testCase, clientSocket, serverSocketAddr));
-            } finally {
-                pool.shutdown();
-            }
-
-            boolean failed = false;
-
-            // wait for client to finish
-            try {
-                System.out.println("Client finished: " + client.get());
-            } catch (CancellationException | InterruptedException
-                    | ExecutionException e) {
-                System.out.println("Exception on client side: ");
-                e.printStackTrace(System.out);
-                failed = true;
-            }
-
-            // wait for server to finish
-            try {
-                System.out.println("Client finished: " + server.get());
-            } catch (CancellationException | InterruptedException
-                    | ExecutionException e) {
-                System.out.println("Exception on server side: ");
-                e.printStackTrace(System.out);
-                failed = true;
-            }
-
-            if (failed) {
-                throw new RuntimeException("Test failed");
-            }
-        }
-    }
-
-    final static class ServerCallable implements Callable<String> {
-
-        private final DTLSOverDatagram testCase;
-        private final DatagramSocket socket;
-        private final InetSocketAddress clientSocketAddr;
-
-        ServerCallable(DTLSOverDatagram testCase, DatagramSocket socket,
-                       InetSocketAddress clientSocketAddr) {
-
-            this.testCase = testCase;
-            this.socket = socket;
-            this.clientSocketAddr = clientSocketAddr;
-        }
-
-        @Override
-        public String call() throws Exception {
-            try {
-                testCase.doServerSide(socket, clientSocketAddr);
-            } catch (Exception e) {
-                System.out.println("Exception in  ServerCallable.call():");
-                e.printStackTrace(System.out);
-                serverException = e;
-
-                if (testCase.isGoodJob()) {
-                    throw e;
-                } else {
-                    return "Well done, server!";
-                }
-            }
-
-            if (testCase.isGoodJob()) {
-                return "Well done, server!";
-            } else {
-                throw new Exception("No expected exception");
-            }
-        }
-    }
-
-    final static class ClientCallable implements Callable<String> {
-
-        private final DTLSOverDatagram testCase;
-        private final DatagramSocket socket;
-        private final InetSocketAddress serverSocketAddr;
-
-        ClientCallable(DTLSOverDatagram testCase, DatagramSocket socket,
-                       InetSocketAddress serverSocketAddr) {
-
-            this.testCase = testCase;
-            this.socket = socket;
-            this.serverSocketAddr = serverSocketAddr;
-        }
-
-        @Override
-        public String call() throws Exception {
-            try {
-                testCase.doClientSide(socket, serverSocketAddr);
-            } catch (Exception e) {
-                System.out.println("Exception in ClientCallable.call():");
-                e.printStackTrace(System.out);
-                clientException = e;
-
-                if (testCase.isGoodJob()) {
-                    throw e;
-                } else {
-                    return "Well done, client!";
-                }
-            }
-
-            if (testCase.isGoodJob()) {
-                return "Well done, client!";
-            } else {
-                throw new Exception("No expected exception");
-            }
-        }
-    }
-
     public final static void printHex(String prefix, ByteBuffer bb) {
         HexDumpEncoder dump = new HexDumpEncoder();
 
@@ -647,23 +451,6 @@ public class DTLSOverDatagram {
             System.out.println(prefix);
             try {
                 dump.encodeBuffer(bb.slice(), System.out);
-            } catch (Exception e) {
-                // ignore
-            }
-            System.out.flush();
-        }
-    }
-
-    final static void printHex(String prefix,
-                               byte[] bytes, int offset, int length) {
-
-        HexDumpEncoder dump = new HexDumpEncoder();
-
-        synchronized (System.out) {
-            System.out.println(prefix);
-            try {
-                ByteBuffer bb = ByteBuffer.wrap(bytes, offset, length);
-                dump.encodeBuffer(bb, System.out);
             } catch (Exception e) {
                 // ignore
             }

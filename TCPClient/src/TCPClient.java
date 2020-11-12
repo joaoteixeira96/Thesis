@@ -12,7 +12,7 @@ public class TCPClient {
     public static final int SERVER_PORT = 1234;
     public static final int LOCAL_PORT = 1237;
     public static final String LOCALHOST = "localhost";  //"172.28.0.4";
-    public static final String SERVER_HOST = "172.28.0.5"; //"172.28.0.5";
+    public static final String SERVER_HOST = "localhost"; //"172.28.0.5";
     public static final String QUIT = "quit";
 
     public static void main(String[] argv) throws Exception {
@@ -40,7 +40,6 @@ public class TCPClient {
             String inputLine;
             while ((inputLine = inFromServer.readLine()).length() > 0) System.out.println(inputLine);
         }
-
     }
 
     private static Socket getSecureSocket() throws IOException {
@@ -50,7 +49,6 @@ public class TCPClient {
                 (SSLSocket) factory.createSocket(SERVER_HOST, SERVER_PORT, InetAddress.getByName(LOCALHOST), LOCAL_PORT);
         socket.startHandshake();
         return socket;
-
     }
 }
 
