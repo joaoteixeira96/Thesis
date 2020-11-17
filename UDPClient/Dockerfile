@@ -47,26 +47,6 @@ RUN set -eux; \
 ENV JAVA_HOME=/opt/java/openjdk \
     PATH="/opt/java/openjdk/bin:$PATH"
 
-RUN apt-get update
-RUN apt-get upgrade -y
-
-RUN apt-get -y install build-essential wget
-RUN apt-get -y install openssl libssl-dev
-
-ENV STUNNEL_VERSION 5.57
-
-RUN wget -O - ftp://ftp.stunnel.org/stunnel/archive/5.x/stunnel-$STUNNEL_VERSION.tar.gz | tar -C /usr/local/src -zxv
-
-RUN openssl req -nodes -new -x509 -keyout /etc/ssl/key.pem -out /etc/ssl/cert.pem -days 365 -subj "/C=UK/ST=Warwickshire/L=Leamington/O=OrgName/OU=IT Department/CN=example.com"
-ADD UDPClient/stunnel/udpclient.conf /usr/local/etc/stunnel/stunnel.conf
-
-# Build stunnel
-RUN cd /usr/local/src/stunnel-$STUNNEL_VERSION && ./configure && make && make install
-
-
-EXPOSE 1236
 WORKDIR /usr/src/udpclient
 COPY /UDPClient/src /usr/src/udpclient/
 RUN javac ./UDPClient.java
-
-CMD ["stunnel"]
