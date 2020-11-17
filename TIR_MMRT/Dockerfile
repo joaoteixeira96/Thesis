@@ -66,5 +66,5 @@ RUN cd /usr/local/src/stunnel-$STUNNEL_VERSION && ./configure && make && make in
 WORKDIR /usr/src/tirmmrt
 COPY TIR_MMRT/src /usr/src/tirmmrt/
 RUN javac ./TIRMMRT.java
-
+#CMD ["java", "./TIRMMRT"]
 CMD ["stunnel"]
