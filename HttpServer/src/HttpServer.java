@@ -7,7 +7,7 @@ import java.util.Date;
 
 public class HttpServer {
     public static final int PORT = 1238;
-    static final int MAX_BYTES = 1024000;
+    static final int MAX_BYTES = 102400000;
 
     public static void main(String[] args) throws IOException {
         ServerSocket ss = new ServerSocket(PORT);
