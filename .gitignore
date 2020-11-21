@@ -1,2 +1,12 @@
 
 *.class
+
+TIR_MMRT/target/maven-archiver/pom.properties
+
+TIR_MMRT/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst
+
+TIR_MMRT/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst
+
+TIR_MMRT/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/inputFiles.lst
+
+TIR_MMRT/target/TIR_MMRT-1.0-SNAPSHOT.jar

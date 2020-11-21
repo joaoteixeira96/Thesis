@@ -62,8 +62,8 @@ public class DTLSOverDatagram {
      */
     private static String passwd = "password";
 
-    private static String keyFilename = "./src/keystore/tirmmrt.key";
-    private static String trustFilename = "./src/keystore/cacerts";
+    private static String keyFilename = "./src/main/java/keystore/tirmmrt.key";
+    private static String trustFilename = "./src/main/java/keystore/cacerts";
     private static Exception clientException = null;
     private static Exception serverException = null;
 

@@ -13,7 +13,7 @@ public class TCPClient {
     public static final String LOCALHOST = "localhost";  //"172.28.0.4";
     public static final String SERVER_HOST = "localhost"; //"172.28.0.5";
     public static final String QUIT = "quit";
-    public static final int BUF_SIZE = 1024;
+    public static final int BUF_SIZE = 512;
 
     public static void main(String[] argv) throws Exception {
         //TIRMMRT certificate for server side authentication
@@ -25,6 +25,7 @@ public class TCPClient {
         Socket socket = argv.length == 0 ? new Socket(SERVER_HOST, SERVER_PORT, InetAddress.getByName(LOCALHOST), LOCAL_PORT) : getSecureSocket();
         OutputStream out = socket.getOutputStream();
         InputStream in = socket.getInputStream();
+
         while (true) {
             String input = inFromUser.nextLine();
             if (input.equalsIgnoreCase("quit")) {
@@ -37,11 +38,30 @@ public class TCPClient {
             out.write(input.getBytes());
             int n;
             byte[] buffer = new byte[BUF_SIZE];
-            while ((n = in.read(buffer, 0, buffer.length)) >= 0) {
+            n = in.read(buffer, 0, buffer.length);
+            System.out.write(buffer, 0, n);
+            int datasize = getContentLength(buffer);
+            while (true) {
+                datasize = datasize - n;
+                if (datasize < 0) break;
+                n = in.read(buffer, 0, buffer.length);
                 System.out.write(buffer, 0, n);
-                if (n < BUF_SIZE) break;
             }
         }
+    }
+
+    private static int getContentLength(byte[] data) {
+        String s = new String(data);
+        try {
+            String[] strArr = s.split("Content-Length: ");
+            if (strArr.length > 1) {
+                strArr = strArr[1].split(" ");
+                return Integer.parseInt(strArr[0]);
+            }
+        } catch (Exception e) {
+            return 0;
+        }
+        return 0;
     }
 
     private static Socket getSecureSocket() throws IOException {

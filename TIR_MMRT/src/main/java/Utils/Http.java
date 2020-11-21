@@ -42,6 +42,16 @@ public class Http {
         return sb.toString();
     }
 
+    public static String parseFilePath(String path) {
+        StringBuffer sb = new StringBuffer();
+        for (char c : path.toCharArray()) {
+            if (c == '\r') break;
+            if (c == '\n') break;
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
 
     /**
      * Parses the first line of the HTTP request and returns an array

@@ -61,7 +61,7 @@ public class HttpServer {
         header += "Content-type: text/html\r\n";
         header += "Server: " + "X-HttpServer" + "\r\n";
         header += "XAlmost-Accept-Ranges: bytes\r\n";
-        header += "Content-Length: " + String.valueOf(length) + "\r\n\r\n";
+        header += "Content-Length: " + String.valueOf(length) + " \r\n\r\n";
         header += page;
         out.write(header.getBytes());
     }
@@ -79,7 +79,7 @@ public class HttpServer {
         header += "Content-type: text/html\r\n";
         header += "Server: " + "X-HttpServer" + "\r\n";
         header += "X-Almost-Accept-Ranges: bytes\r\n";
-        header += "Content-Length: " + String.valueOf(length) + "\r\n\r\n";
+        header += "Content-Length: " + String.valueOf(length) + " \r\n\r\n";
         header += page;
         out.write(header.getBytes());
     }
@@ -112,7 +112,7 @@ public class HttpServer {
                 header.append("HTTP/1.0 416 Range not satisfiable\r\n");
                 header.append("Date: " + new Date().toString() + "\r\n");
                 header.append("Server: " + "X-HttpServer" + "\r\n");
-                header.append("XAlmost-Accept-Ranges: bytes\r\n");
+                header.append("Content-type: " + getContentType(fileName) + "\r\n");
                 header.append("Content-Range: bytes *-0\r\n"); //
                 file.close();
                 out.write(header.toString().getBytes());
@@ -124,15 +124,16 @@ public class HttpServer {
                 header.append("HTTP/1.0 200 OK\r\n");
                 header.append("Date: " + new Date().toString() + "\r\n");
                 header.append("Server: " + "X-HttpServer" + "\r\n");
-                header.append("XAlmost-Accept-Ranges: bytes\r\n");
-                header.append("Content-Length: " + size + "\r\n\r\n");
+                header.append("Content-type: " + getContentType(fileName) + "\r\n");
+                header.append("Content-Length: " + size + " \r\n\r\n");
             } else { // there are ranges and something to send
                 header.append("HTTP/1.0 206 Partial Content\r\n");
                 header.append("Date: " + new Date().toString() + "\r\n");
                 header.append("Server: " + "X-HttpServer" + "\r\n");
+                header.append("Content-type: " + getContentType(fileName) + "\r\n");
                 header.append("XAlmost-Accept-Ranges: bytes\r\n");
                 header.append("Content-Range: bytes " + (size - 1) + "/*\r\n"); // "/"+fileSize+
-                header.append("Content-Length: " + size + "\r\n\r\n");
+                header.append("Content-Length: " + size + " \r\n\r\n");
             }
             out.write(header.toString().getBytes());
             // size > 0 since there is something to send
@@ -149,5 +150,14 @@ public class HttpServer {
             }
             file.close();
         }
+    }
+
+    private static String getContentType(String fileRequested) {
+        if (fileRequested.endsWith(".htm") || fileRequested.endsWith(".html"))
+            return "text/html";
+        else if (fileRequested.endsWith(".jpeg") || fileRequested.endsWith(".png"))
+            return "text/jpeg";
+        else
+            return "text/plain";
     }
 }

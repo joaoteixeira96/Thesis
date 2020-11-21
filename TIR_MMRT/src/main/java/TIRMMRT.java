@@ -1,6 +1,18 @@
 import Utils.ClassServer;
 import Utils.DTLSOverDatagram;
 import Utils.Http;
+import org.apache.http.HttpHost;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.util.EntityUtils;
 
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.KeyManagerFactory;
@@ -12,6 +24,7 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -20,12 +33,14 @@ public class TIRMMRT {
     public static final int PORT = 1234;
     public static final String PASSWORD = "password";
     public static final int BUF_SIZE = 512;
-    public static final String KEYSTORE_KEY = "./src/keystore/tirmmrt.key";
-    public static final String REMOTE_HOST = "localhost";
+    public static final String KEYSTORE_KEY = "./src/main/java/keystore/tirmmrt.key";
+    public static final String REMOTE_HOST = "127.0.0.1";
     public static final int REMOTE_PORT = 1238;
+    public static final String TOR_HOST = "127.0.0.1";
+    public static final int TOR_PORT = 9050;
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         //TODO - create thread for each socket connection with binding port
 
         // TCP
@@ -129,57 +144,6 @@ public class TIRMMRT {
     }
 
     private static void doTCP_TLS(Socket socket) {
-        /*try {
-            OutputStream rawOut = socket.getOutputStream();
-
-            PrintWriter out = new PrintWriter(
-                    new BufferedWriter(
-                            new OutputStreamWriter(
-                                    rawOut)));
-            try {
-                // get path to class file from header
-                BufferedReader in =
-                        new BufferedReader(
-                                new InputStreamReader(socket.getInputStream()));
-                while (true) {
-                    String filePath = in.readLine();
-
-                    System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
-
-                    byte[] fileData = ClassServer.retrieveFile(filePath);
-
-                    // send HTTP Headers
-                    out.println("HTTP/1.1 200 OK");
-                    out.println("Date: " + new Date());
-                    out.println("Content-type: " + getContentType(filePath));
-                    out.println("Content-length: " + fileData.length);
-                    out.println(); // blank line between headers and content, very important !
-                    rawOut.write(fileData, 0, fileData.length);
-                    rawOut.flush();
-                    out.flush(); // flush character output stream buffer
-
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                // write out error response
-                out.println("HTTP/1.0 400 " + e.getMessage() + "\r\n");
-                out.println("Content-Type: text/html\r\n\r\n");
-                out.flush();
-            }
-
-
-        } catch (IOException ex) {
-            // eat exception (could log error to log file, but
-            // write out to stdout for now).
-            System.out.println("error writing response: " + ex.getMessage());
-            ex.printStackTrace();
-
-        } finally {
-            try {
-                socket.close();
-            } catch (IOException e) {
-            }
-        }*/
         try {
             OutputStream out = socket.getOutputStream();
             InputStream in = socket.getInputStream();
@@ -188,9 +152,9 @@ public class TIRMMRT {
                 in.read(buffer);
                 String filePath = new String(buffer);
                 System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
-                byte[] data = httpRequest(filePath);
+                //byte[] data = httpRequest(filePath);
+                byte[] data = torRequest(filePath);
                 out.write(data, 0, data.length);
-                out.flush();
             }
 
         } catch (Exception e) {
@@ -279,5 +243,51 @@ public class TIRMMRT {
             return "text/html";
         else
             return "text/plain";
+    }
+
+    private static byte[] torRequest(String path) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Registry<ConnectionSocketFactory> reg = RegistryBuilder.<ConnectionSocketFactory>create()
+                .register("http", PlainConnectionSocketFactory.INSTANCE)
+                .build();
+        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(reg);
+        CloseableHttpClient httpclient = HttpClients.custom()
+                .setConnectionManager(cm)
+                .build();
+        try {
+            InetSocketAddress socksaddr = new InetSocketAddress(TOR_HOST, 9050);
+            HttpClientContext context = HttpClientContext.create();
+            context.setAttribute("socks.address", socksaddr);
+
+            HttpHost target = new HttpHost(REMOTE_HOST, 1238, "http");
+            HttpGet request = new HttpGet(path.trim());
+
+            CloseableHttpResponse response = httpclient.execute(target, request, context);
+            try {
+                System.out.println(response.getStatusLine());
+                baos.write((response.getStatusLine() + "\r\n").getBytes());
+                Arrays.stream(response.getAllHeaders()).forEach(System.out::println);
+                Arrays.stream(response.getAllHeaders()).forEach(header -> {
+                    try {
+                        baos.write((header + "\r\n").getBytes());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+                baos.write("\r\n".getBytes());
+                int n;
+                byte[] buffer = new byte[BUF_SIZE];
+                while ((n = response.getEntity().getContent().read(buffer, 0, buffer.length)) >= 0) {
+                    baos.write(buffer, 0, n);
+                    System.out.write(buffer, 0, n);
+                }
+                EntityUtils.consume(response.getEntity());
+            } finally {
+                response.close();
+            }
+        } finally {
+            httpclient.close();
+        }
+        return baos.toByteArray();
     }
 }
