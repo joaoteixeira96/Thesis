@@ -260,7 +260,7 @@ public class DTLSOverDatagram {
             recBuffer.flip();
             if (recBuffer.remaining() != 0) {
                 System.out.println("Received application data :" + new String(recBuffer.array(), StandardCharsets.UTF_8));
-                ClassServer cs = new ClassServer();
+                FileReader cs = new FileReader();
                 return ByteBuffer.wrap(cs.retrieveFile(new String(recBuffer.array(), StandardCharsets.UTF_8)));
                 //break;
             }

@@ -12,7 +12,6 @@ public class TCPClient {
     public static final int LOCAL_PORT = 1237;
     public static final String LOCALHOST = "localhost";  //"172.28.0.4";
     public static final String SERVER_HOST = "localhost"; //"172.28.0.5";
-    public static final String QUIT = "quit";
     public static final int BUF_SIZE = 512;
 
     public static void main(String[] argv) throws Exception {

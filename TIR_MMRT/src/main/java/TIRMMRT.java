@@ -1,5 +1,5 @@
-import Utils.ClassServer;
 import Utils.DTLSOverDatagram;
+import Utils.FileReader;
 import Utils.Http;
 import org.apache.http.HttpHost;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -52,9 +52,7 @@ public class TIRMMRT {
                 while (true) {
                     final Socket socket = server.accept();
                     System.out.println("TCP connection " + socket.getInetAddress() + ":" + socket.getPort());
-                    executor.execute(() -> {
-                        doTCP_TLS(socket);
-                    });
+                    executor.execute(() -> doTCP_TLS(socket));
                 }
             } catch (IOException ioe) {
                 System.err.println("Cannot open the port on TCP");
@@ -87,6 +85,7 @@ public class TIRMMRT {
         }).start();
     }
 
+    //TIR-MMRT directly requests HttpServer without going throw Tor
     private static byte[] httpRequest(String path) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Socket socket = new Socket(REMOTE_HOST, REMOTE_PORT);
@@ -117,7 +116,6 @@ public class TIRMMRT {
         while (!answerLine.equals("")) {
             System.out.println(answerLine);
             baos.write((answerLine + "\r\n").getBytes());
-            String[] head = Http.parseHttpHeader(answerLine);
             answerLine = Http.readLine(in);
         }
 
@@ -156,7 +154,6 @@ public class TIRMMRT {
                 byte[] data = torRequest(filePath);
                 out.write(data, 0, data.length);
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -175,7 +172,7 @@ public class TIRMMRT {
         String filePath = new String(buf, StandardCharsets.UTF_8);
         System.out.println(packet.getSocketAddress().toString()
                 + ": " + filePath);
-        byte[] sendData = buildRequest(filePath, ClassServer.retrieveFile(filePath), null);
+        byte[] sendData = buildRequest(filePath, FileReader.retrieveFile(filePath), null);
         packet.setData(sendData);
         socket.send(packet);
     }
@@ -214,7 +211,7 @@ public class TIRMMRT {
 
     private static ServerSocketFactory getServerSocketFactory() {
 
-        SSLServerSocketFactory ssf = null;
+        SSLServerSocketFactory ssf;
         try {
             // set up key manager to do server authentication
             SSLContext ctx;
@@ -251,19 +248,17 @@ public class TIRMMRT {
                 .register("http", PlainConnectionSocketFactory.INSTANCE)
                 .build();
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(reg);
-        CloseableHttpClient httpclient = HttpClients.custom()
+        try (CloseableHttpClient httpclient = HttpClients.custom()
                 .setConnectionManager(cm)
-                .build();
-        try {
-            InetSocketAddress socksaddr = new InetSocketAddress(TOR_HOST, 9050);
+                .build()) {
+            InetSocketAddress socksaddr = new InetSocketAddress(TOR_HOST, TOR_PORT);
             HttpClientContext context = HttpClientContext.create();
             context.setAttribute("socks.address", socksaddr);
 
-            HttpHost target = new HttpHost(REMOTE_HOST, 1238, "http");
+            HttpHost target = new HttpHost(REMOTE_HOST, REMOTE_PORT, "http");
             HttpGet request = new HttpGet(path.trim());
 
-            CloseableHttpResponse response = httpclient.execute(target, request, context);
-            try {
+            try (CloseableHttpResponse response = httpclient.execute(target, request, context)) {
                 System.out.println(response.getStatusLine());
                 baos.write((response.getStatusLine() + "\r\n").getBytes());
                 Arrays.stream(response.getAllHeaders()).forEach(System.out::println);
@@ -274,7 +269,7 @@ public class TIRMMRT {
                         e.printStackTrace();
                     }
                 });
-                baos.write("\r\n".getBytes());
+                baos.write("\r\n".getBytes()); //Separate line between header and body
                 int n;
                 byte[] buffer = new byte[BUF_SIZE];
                 while ((n = response.getEntity().getContent().read(buffer, 0, buffer.length)) >= 0) {
@@ -282,11 +277,7 @@ public class TIRMMRT {
                     System.out.write(buffer, 0, n);
                 }
                 EntityUtils.consume(response.getEntity());
-            } finally {
-                response.close();
             }
-        } finally {
-            httpclient.close();
         }
         return baos.toByteArray();
     }

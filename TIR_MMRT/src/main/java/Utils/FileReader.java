@@ -3,19 +3,22 @@ package Utils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.StringTokenizer;
 
 /*
  * Utils.ClassServer.java -- a simple file server that can serve
  * Http get request in both clear and secure channel
  */
 
-public class FileManager {
+public class FileReader {
 
 
     public static byte[] retrieveFile(String path) throws IOException {
+        StringTokenizer parse = new StringTokenizer(path);
+        String method = parse.nextToken().toUpperCase(); // we get the HTTP method of the client
+        String fileRequested = parse.nextToken();// we get file requested
 
-
-        File file = new File(path);
+        File file = new File(fileRequested);
         int fileLength = (int) file.length();
 
         byte[] fileData = readFileData(file, fileLength);

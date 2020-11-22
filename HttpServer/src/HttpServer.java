@@ -37,11 +37,10 @@ public class HttpServer {
             line = Http.readLine(in);
             while (!line.equals("")) {
                 System.out.println(line);
-                String[] header = Http.parseHttpHeader(line);
                 line = Http.readLine(in);
             }
             System.out.println();
-            if (request[0].equalsIgnoreCase("GET") && request[1] != "") {
+            if (request[0].equalsIgnoreCase("GET") && !request[1].equals("")) {
                 sendFile(request[1], out);
             } else {
                 sendsNotSupportedPage(out);
@@ -61,7 +60,7 @@ public class HttpServer {
         header += "Content-type: text/html\r\n";
         header += "Server: " + "X-HttpServer" + "\r\n";
         header += "XAlmost-Accept-Ranges: bytes\r\n";
-        header += "Content-Length: " + String.valueOf(length) + " \r\n\r\n";
+        header += "Content-Length: " + length + " \r\n\r\n";
         header += page;
         out.write(header.getBytes());
     }
@@ -79,7 +78,7 @@ public class HttpServer {
         header += "Content-type: text/html\r\n";
         header += "Server: " + "X-HttpServer" + "\r\n";
         header += "X-Almost-Accept-Ranges: bytes\r\n";
-        header += "Content-Length: " + String.valueOf(length) + " \r\n\r\n";
+        header += "Content-Length: " + length + " \r\n\r\n";
         header += page;
         out.write(header.getBytes());
     }
@@ -90,14 +89,14 @@ public class HttpServer {
         String name = fileName.substring(1);
         File f = new File(name);
         System.out.println("I will try to send file: \"" + name + "\"");
-        if (name == "") sendsSimplePage("The empty name is not a file", out);
+        if (name.equals("")) sendsSimplePage("The empty name is not a file", out);
         else if (!f.exists()) sendsSimplePage("File \"" + fileName + "\" does not exist", out);
         else if (!f.isFile()) sendsSimplePage("File \"" + fileName + "\" is not a file", out);
         else if (!f.canRead()) sendsSimplePage("File \"" + fileName + "\" cannot be read", out);
         else {
             // we are going to send something
             long fileSize = f.length();
-            long rest = 0;
+            long rest;
             rest = fileSize;     // never sends more then available
             if (rest > MAX_BYTES) rest = MAX_BYTES; // never sends more then MAX_BYTES
 
@@ -106,35 +105,22 @@ public class HttpServer {
             long size = rest <= 0 ? 0 : rest; // number of bytes to send
 
             RandomAccessFile file = new RandomAccessFile(f, "r");
-            StringBuilder header = new StringBuilder("");
+            StringBuilder header = new StringBuilder();
 
-            if (size == 0 && fileSize > 0) { // || ranges[1] > fileSize-1 ) {
-                header.append("HTTP/1.0 416 Range not satisfiable\r\n");
-                header.append("Date: " + new Date().toString() + "\r\n");
-                header.append("Server: " + "X-HttpServer" + "\r\n");
-                header.append("Content-type: " + getContentType(fileName) + "\r\n");
-                header.append("Content-Range: bytes *-0\r\n"); //
-                file.close();
-                out.write(header.toString().getBytes());
-                return;
-            }
-            // send the all file? it covers the case where a range was asked
-            // but the all file is sent (bytes=0-fileSize, bytes=0-, bytes=0-something too big)
-            else if (size == fileSize) {
+            if (size == fileSize) {
                 header.append("HTTP/1.0 200 OK\r\n");
-                header.append("Date: " + new Date().toString() + "\r\n");
+                header.append("Date: ").append(new Date().toString()).append("\r\n");
                 header.append("Server: " + "X-HttpServer" + "\r\n");
-                header.append("Content-type: " + getContentType(fileName) + "\r\n");
-                header.append("Content-Length: " + size + " \r\n\r\n");
+                header.append("Content-type: ").append(getContentType(fileName)).append("\r\n");
             } else { // there are ranges and something to send
                 header.append("HTTP/1.0 206 Partial Content\r\n");
-                header.append("Date: " + new Date().toString() + "\r\n");
+                header.append("Date: ").append(new Date().toString()).append("\r\n");
                 header.append("Server: " + "X-HttpServer" + "\r\n");
-                header.append("Content-type: " + getContentType(fileName) + "\r\n");
+                header.append("Content-type: ").append(getContentType(fileName)).append("\r\n");
                 header.append("XAlmost-Accept-Ranges: bytes\r\n");
-                header.append("Content-Range: bytes " + (size - 1) + "/*\r\n"); // "/"+fileSize+
-                header.append("Content-Length: " + size + " \r\n\r\n");
+                header.append("Content-Range: bytes ").append(size - 1).append("/*\r\n"); // "/"+fileSize+
             }
+            header.append("Content-Length: ").append(size).append(" \r\n\r\n");
             out.write(header.toString().getBytes());
             // size > 0 since there is something to send
             long bufferSize = (size <= 4096) ? size : 4096;
