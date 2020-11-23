@@ -242,9 +242,8 @@ public class DTLSOverDatagram {
     }
 
     // receive application data
-    public ByteBuffer receiveAppData(SSLEngine engine,
-                                     DatagramSocket socket) throws Exception {
-        ByteBuffer recBuffer = null;
+    public String receiveAppData(SSLEngine engine,
+                                 DatagramSocket socket) throws Exception {
         int loops = MAX_APP_READ_LOOPS;
         while (true) {
             if (--loops < 0) {
@@ -255,14 +254,11 @@ public class DTLSOverDatagram {
             DatagramPacket packet = new DatagramPacket(buf, buf.length);
             socket.receive(packet);
             ByteBuffer netBuffer = ByteBuffer.wrap(buf, 0, packet.getLength());
-            recBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+            ByteBuffer recBuffer = ByteBuffer.allocate(BUFFER_SIZE);
             SSLEngineResult rs = engine.unwrap(netBuffer, recBuffer);
             recBuffer.flip();
             if (recBuffer.remaining() != 0) {
-                System.out.println("Received application data :" + new String(recBuffer.array(), StandardCharsets.UTF_8));
-                FileReader cs = new FileReader();
-                return ByteBuffer.wrap(cs.retrieveFile(new String(recBuffer.array(), StandardCharsets.UTF_8)));
-                //break;
+                return new String(recBuffer.array(), StandardCharsets.UTF_8);
             }
         }
     }
@@ -380,13 +376,10 @@ public class DTLSOverDatagram {
         } else {
             throw new Exception("Can't reach here, result is " + rs);
         }
-
-        // SSLEngineResult.Status.OK:
         if (appNet.hasRemaining()) {
-            byte[] ba = new byte[appNet.remaining()];
-            appNet.get(ba);
+            int datasize = getContentLength(source.array());
             DatagramPacket packet =
-                    new DatagramPacket(ba, ba.length, socketAddr);
+                    new DatagramPacket(appNet.array(), datasize, socketAddr);
             packets.add(packet);
         }
 
@@ -444,6 +437,20 @@ public class DTLSOverDatagram {
         sslCtx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         return sslCtx;
+    }
+
+    private static int getContentLength(byte[] data) {
+        String s = new String(data);
+        try {
+            String[] strArr = s.split("Content-Length: ");
+            if (strArr.length > 1) {
+                strArr = strArr[1].split(" ");
+                return Integer.parseInt(strArr[0]);
+            }
+        } catch (Exception e) {
+            return 0;
+        }
+        return 0;
     }
 
     static void log(String side, String message) {

@@ -1,5 +1,4 @@
 import Utils.DTLSOverDatagram;
-import Utils.FileReader;
 import Utils.Http;
 import org.apache.http.HttpHost;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -170,10 +169,10 @@ public class TIRMMRT {
         DatagramPacket packet = new DatagramPacket(buf, buf.length);
         socket.receive(packet);
         String filePath = new String(buf, StandardCharsets.UTF_8);
-        System.out.println(packet.getSocketAddress().toString()
-                + ": " + filePath);
-        byte[] sendData = buildRequest(filePath, FileReader.retrieveFile(filePath), null);
-        packet.setData(sendData);
+        System.out.println("File request path: " + filePath + " from " + packet.getAddress() + ":" + packet.getPort());
+        //byte[] data = buildRequest(filePath, FileReader.retrieveFile(filePath), null);
+        byte[] data = torRequest(filePath);
+        packet.setData(data);
         socket.send(packet);
     }
 
@@ -183,9 +182,10 @@ public class TIRMMRT {
             DTLSOverDatagram dtls = new DTLSOverDatagram();
             SSLEngine engine = dtls.createSSLEngine(false);
             InetSocketAddress isa = dtls.handshake(engine, socket, null, "Server");
-            ByteBuffer fileData = dtls.receiveAppData(engine, socket);
-            byte[] sendData = buildRequest("", fileData.array(), null);
-            dtls.deliverAppData(engine, socket, ByteBuffer.wrap(sendData), isa);
+            String filePath = dtls.receiveAppData(engine, socket);
+            byte[] data = torRequest(filePath);
+            //byte[] sendData = buildRequest("", fileData.array(), null);
+            dtls.deliverAppData(engine, socket, ByteBuffer.wrap(data), isa);
 
         } catch (Exception e) {
             e.printStackTrace();

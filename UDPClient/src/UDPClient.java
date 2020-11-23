@@ -18,17 +18,18 @@ class UDPClient {
 
     public static void main(String[] args) throws Exception {
         Scanner inFromUser = new Scanner(System.in);
-        DatagramSocket clientSocket = new DatagramSocket(LOCAL_PORT);
         InetAddress IPAddress = InetAddress.getByName(REMOTE_HOST);
         while (true) {
+            DatagramSocket clientSocket = new DatagramSocket(LOCAL_PORT);
             //send
             String input = inFromUser.nextLine();
-            byte [] path = ("GET " + input + " HTTP/1.1").getBytes();
+            byte [] path = input.getBytes();
             if ((args.length == 0)) {
                 doUDP(path, IPAddress, clientSocket);
             } else {
                 doDTLS(clientSocket, path);
             }
+            clientSocket.close();
         }
     }
     private static void doUDP(byte [] path, InetAddress IPAddress, DatagramSocket clientSocket){
