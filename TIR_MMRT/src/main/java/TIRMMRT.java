@@ -8,9 +8,12 @@ import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 
 import javax.net.ServerSocketFactory;
@@ -41,7 +44,6 @@ public class TIRMMRT {
 
     public static void main(String[] args) throws IOException {
         //TODO - create thread for each socket connection with binding port
-
         // TCP
         new Thread(() -> {
             ExecutorService executor = null;
@@ -199,7 +201,7 @@ public class TIRMMRT {
         if (error == null) {
             baos.write(("HTTP/1.1 200 OK" + "\r\n").getBytes());
             baos.write(("Date: " + new Date() + "\r\n").getBytes());
-            baos.write(("Content-type: " + getContentType(filePath) + "\r\n").getBytes());
+            baos.write(("Content-type: " + Http.getContentType(filePath) + "\r\n").getBytes());
             baos.write(("Content-length: " + file.length + "\r\n\r\n").getBytes());
             baos.write(file);
         } else {
@@ -235,17 +237,11 @@ public class TIRMMRT {
         return null;
     }
 
-    private static String getContentType(String fileRequested) {
-        if (fileRequested.endsWith(".htm") || fileRequested.endsWith(".html"))
-            return "text/html";
-        else
-            return "text/plain";
-    }
-
     private static byte[] torRequest(String path) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Registry<ConnectionSocketFactory> reg = RegistryBuilder.<ConnectionSocketFactory>create()
                 .register("http", PlainConnectionSocketFactory.INSTANCE)
+                .register("https", new MyConnectionSocketFactory(SSLContexts.createSystemDefault())) //Only used to very if Tor is working correctly
                 .build();
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(reg);
         try (CloseableHttpClient httpclient = HttpClients.custom()
@@ -255,8 +251,10 @@ public class TIRMMRT {
             HttpClientContext context = HttpClientContext.create();
             context.setAttribute("socks.address", socksaddr);
 
+            //HttpHost target = new HttpHost("check.torproject.org", 80, "http");
             HttpHost target = new HttpHost(REMOTE_HOST, REMOTE_PORT, "http");
             HttpGet request = new HttpGet(path.trim());
+            System.err.println("Requesting Tor path:" + path);
 
             try (CloseableHttpResponse response = httpclient.execute(target, request, context)) {
                 System.out.println(response.getStatusLine());
@@ -280,5 +278,20 @@ public class TIRMMRT {
             }
         }
         return baos.toByteArray();
+    }
+
+    static class MyConnectionSocketFactory extends SSLConnectionSocketFactory {
+
+        public MyConnectionSocketFactory(final SSLContext sslContext) {
+            super(sslContext);
+        }
+
+        @Override
+        public Socket createSocket(final HttpContext context) throws IOException {
+            InetSocketAddress socksaddr = (InetSocketAddress) context.getAttribute("socks.address");
+            Proxy proxy = new Proxy(Proxy.Type.SOCKS, socksaddr);
+            return new Socket(proxy);
+        }
+
     }
 }

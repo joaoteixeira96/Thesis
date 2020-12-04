@@ -45,22 +45,10 @@ public class Http {
         return result;
     }
 
-
-    /**
-     * Parses an HTTP header returning an array with the name of the attribute header
-     * in position 0 and its value in position 1
-     * Example, for "Connection: Keep-alive", returns:
-     * [0]->"Connection"; [1]->"Keep-alive"
-     * <p>
-     * If the input is malformed, it returns something unpredictable
-     */
-    public static String[] parseHttpHeader(String header) {
-        String[] result = {"ERROR", ""};
-        int pos0 = header.indexOf(':');
-        if (pos0 == -1)
-            return result;
-        result[0] = header.substring(0, pos0).trim();
-        result[1] = header.substring(pos0 + 1).trim();
-        return result;
+    public static String getContentType(String fileRequested) {
+        if (fileRequested.endsWith(".htm") || fileRequested.endsWith(".html"))
+            return "text/html";
+        else
+            return "text/plain";
     }
 }
