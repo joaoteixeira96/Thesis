@@ -1,3 +1,5 @@
+import Utils.Stats;
+
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
@@ -12,7 +14,7 @@ public class TCPClient {
     public static final int LOCAL_PORT = 1237;
     public static final String LOCALHOST = "localhost";  //"172.28.0.4";
     public static final String SERVER_HOST = "localhost"; //"172.28.0.5";
-    public static final int BUF_SIZE = 512;
+    public static final int BUF_SIZE = 1024;
 
     public static void main(String[] argv) throws Exception {
         //TIRMMRT certificate for server side authentication
@@ -25,6 +27,8 @@ public class TCPClient {
         OutputStream out = socket.getOutputStream();
         InputStream in = socket.getInputStream();
 
+        socket.setSoTimeout(5000);
+
         while (true) {
             String input = inFromUser.nextLine();
             if (input.equalsIgnoreCase("quit")) {
@@ -36,16 +40,18 @@ public class TCPClient {
             }
             out.write(input.getBytes());
             int n;
+            Stats stats = new Stats();
             byte[] buffer = new byte[BUF_SIZE];
             n = in.read(buffer, 0, buffer.length);
-            System.out.write(buffer, 0, n);
-            int datasize = getContentLength(buffer);
+            int contentLength = getContentLength(buffer);
             while (true) {
-                datasize = datasize - n;
-                if (datasize < 0) break;
-                n = in.read(buffer, 0, buffer.length);
                 System.out.write(buffer, 0, n);
+                stats.newRequest(n);
+                contentLength = contentLength - n;
+                if (contentLength < 0) break;
+                n = in.read(buffer, 0, buffer.length);
             }
+            stats.printReport();
         }
     }
 

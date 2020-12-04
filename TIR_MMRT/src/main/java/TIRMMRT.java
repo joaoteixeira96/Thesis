@@ -27,14 +27,13 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class TIRMMRT {
     public static final int PORT = 1234;
     public static final String PASSWORD = "password";
-    public static final int BUF_SIZE = 512;
+    public static final int BUF_SIZE = 1024;
     public static final String KEYSTORE_KEY = "./src/main/java/keystore/tirmmrt.key";
     public static final String REMOTE_HOST = "127.0.0.1";
     public static final int REMOTE_PORT = 1238;
@@ -77,7 +76,7 @@ public class TIRMMRT {
                         doDTLS(socket);
                     }
                 }
-            } catch (IOException ioe) {
+            } catch (IOException | InterruptedException ioe) {
                 System.err.println("Cannot open the port on UDP");
                 ioe.printStackTrace();
             } finally {
@@ -146,8 +145,8 @@ public class TIRMMRT {
         try {
             OutputStream out = socket.getOutputStream();
             InputStream in = socket.getInputStream();
-            byte[] buffer = new byte[BUF_SIZE];
             while (true) {
+                byte[] buffer = new byte[socket.getReceiveBufferSize()];
                 in.read(buffer);
                 String filePath = new String(buffer);
                 System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
@@ -166,16 +165,23 @@ public class TIRMMRT {
         return ss;
     }
 
-    private static void doUDP(DatagramSocket socket) throws IOException {
+    private static void doUDP(DatagramSocket socket) throws IOException, InterruptedException {
+        //receive
         byte[] buf = new byte[socket.getReceiveBufferSize()];
-        DatagramPacket packet = new DatagramPacket(buf, buf.length);
-        socket.receive(packet);
+        DatagramPacket receivePacket = new DatagramPacket(buf, buf.length);
+        socket.receive(receivePacket);
         String filePath = new String(buf, StandardCharsets.UTF_8);
-        System.out.println("File request path: " + filePath + " from " + packet.getAddress() + ":" + packet.getPort());
-        //byte[] data = buildRequest(filePath, FileReader.retrieveFile(filePath), null);
+        System.out.println("File request path: " + filePath + " from " + receivePacket.getAddress() + ":" + receivePacket.getPort());
         byte[] data = torRequest(filePath);
-        packet.setData(data);
-        socket.send(packet);
+        //send
+        int bytesSent = 0;
+        while (bytesSent <= data.length) {
+            byte[] sendData = Arrays.copyOfRange(data, bytesSent, bytesSent + BUF_SIZE);
+            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(sendPacket);
+            bytesSent += BUF_SIZE;
+            socket.receive(sendPacket); //Important to make UDP flow traffic
+        }
     }
 
 
@@ -186,7 +192,6 @@ public class TIRMMRT {
             InetSocketAddress isa = dtls.handshake(engine, socket, null, "Server");
             String filePath = dtls.receiveAppData(engine, socket);
             byte[] data = torRequest(filePath);
-            //byte[] sendData = buildRequest("", fileData.array(), null);
             dtls.deliverAppData(engine, socket, ByteBuffer.wrap(data), isa);
 
         } catch (Exception e) {
@@ -194,21 +199,6 @@ public class TIRMMRT {
             System.err.println("Unable to do DTLS");
         }
 
-    }
-
-    private static byte[] buildRequest(String filePath, byte[] file, String error) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        if (error == null) {
-            baos.write(("HTTP/1.1 200 OK" + "\r\n").getBytes());
-            baos.write(("Date: " + new Date() + "\r\n").getBytes());
-            baos.write(("Content-type: " + Http.getContentType(filePath) + "\r\n").getBytes());
-            baos.write(("Content-length: " + file.length + "\r\n\r\n").getBytes());
-            baos.write(file);
-        } else {
-            baos.write(("HTTP/1.0 400 " + error + "\r\n").getBytes());
-            baos.write(("Content-Type: text/html\r\n\r\n").getBytes());
-        }
-        return baos.toByteArray();
     }
 
     private static ServerSocketFactory getServerSocketFactory() {

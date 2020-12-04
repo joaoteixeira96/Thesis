@@ -34,17 +34,17 @@ package Utils;
  * @run main/othervm DTLSOverDatagram
  */
 
-import sun.security.util.HexDumpEncoder;
-
 import javax.net.ssl.*;
 import java.io.FileInputStream;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
 
 /**
  * An example to show the way to use SSLEngine in datagram connections.
@@ -442,20 +442,6 @@ public class DTLSOverDatagram {
         sslCtx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         return sslCtx;
-    }
-
-    public final static void printHex(String prefix, ByteBuffer bb) {
-        HexDumpEncoder dump = new HexDumpEncoder();
-
-        synchronized (System.out) {
-            System.out.println(prefix);
-            try {
-                dump.encodeBuffer(bb.slice(), System.out);
-            } catch (Exception e) {
-                // ignore
-            }
-            System.out.flush();
-        }
     }
 
     static void log(String side, String message) {

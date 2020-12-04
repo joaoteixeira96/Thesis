@@ -1,13 +1,12 @@
 import Utils.DTLSOverDatagram;
-import sun.security.util.HexDumpEncoder;
-
+import Utils.Stats;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLEngineResult;
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Scanner;
 
 class UDPClient {
@@ -15,12 +14,14 @@ class UDPClient {
     public static final int LOCAL_PORT = 1236;
 
     public static final String REMOTE_HOST = "127.0.0.1";//"172.28.0.5";
+    public static final int BUF_SIZE = 1024;
 
     public static void main(String[] args) throws Exception {
         Scanner inFromUser = new Scanner(System.in);
         InetAddress IPAddress = InetAddress.getByName(REMOTE_HOST);
         while (true) {
             DatagramSocket clientSocket = new DatagramSocket(LOCAL_PORT);
+            clientSocket.setSoTimeout(5000);
             //send
             String input = inFromUser.nextLine();
             byte [] path = input.getBytes();
@@ -34,14 +35,23 @@ class UDPClient {
     }
     private static void doUDP(byte [] path, InetAddress IPAddress, DatagramSocket clientSocket){
         try{
+            Stats stats = new Stats();
             DatagramPacket sendPacket = new DatagramPacket(path, path.length, IPAddress, REMOTE_PORT);
             clientSocket.send(sendPacket);
             //receive
-            byte[] receiveData = new byte[clientSocket.getReceiveBufferSize()];
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-            clientSocket.receive(receivePacket);
-            String receivedPacket = new String(receivePacket.getData());
-            System.out.println("FROM SERVER:" + receivedPacket);
+            byte[] sendData = new byte[BUF_SIZE];
+            DatagramPacket receivedPacket = new DatagramPacket(sendData, sendData.length);
+            clientSocket.receive(receivedPacket);
+            int contentLength = getContentLength(sendData);
+            while (true) {
+                stats.newRequest(receivedPacket.getLength());
+                contentLength -= receivedPacket.getLength();
+                System.out.println(new String(receivedPacket.getData()));
+                clientSocket.send(sendPacket); //Important to make UDP flow traffic
+                if(contentLength<0) break;
+                clientSocket.receive(receivedPacket);
+            }
+            stats.printReport();
         } catch (IOException e) {
             e.printStackTrace();
             System.err.println("Unable to do UDP");
@@ -65,5 +75,18 @@ class UDPClient {
         SSLEngine engine = dtls.createSSLEngine(true);
         dtls.handshake(engine, socket, isa, "Client");
         return engine;
+    }
+    private static int getContentLength(byte[] data) {
+        String s = new String(data);
+        try {
+            String[] strArr = s.split("Content-Length: ");
+            if (strArr.length > 1) {
+                strArr = strArr[1].split(" ");
+                return Integer.parseInt(strArr[0]);
+            }
+        } catch (Exception e) {
+            return 0;
+        }
+        return 0;
     }
 }
