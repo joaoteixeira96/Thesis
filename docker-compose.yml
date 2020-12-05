@@ -27,6 +27,15 @@ services:
     networks:
       thesis:
         ipv4_address: 172.28.0.3
+  httpserver:
+    ports:
+    - "1238"
+    build:
+      context: .
+      dockerfile: ./HttpServer/Dockerfile
+    networks:
+      thesis:
+        ipv4_address: 172.28.0.6
 networks:
   thesis:
     ipam:
