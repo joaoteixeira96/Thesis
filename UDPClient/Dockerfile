@@ -49,4 +49,5 @@ ENV JAVA_HOME=/opt/java/openjdk \
 
 WORKDIR /usr/src/udpclient
 COPY /UDPClient/src /usr/src/udpclient/
+COPY /UDPClient .
 RUN javac ./UDPClient.java

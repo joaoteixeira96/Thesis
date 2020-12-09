@@ -12,8 +12,8 @@ import java.util.Scanner;
 public class TCPClient {
     public static final int SERVER_PORT = 1234;
     public static final int LOCAL_PORT = 1237;
-    public static final String LOCALHOST = "172.28.0.4";  //"172.28.0.4";
-    public static final String SERVER_HOST = "172.28.0.5"; //"172.28.0.5";
+    public static final String LOCALHOST = "172.28.0.4";  //172.28.0.4 or 127.0.0.1;
+    public static final String SERVER_HOST = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
     public static final int BUF_SIZE = 1024;
 
     public static void main(String[] argv) throws Exception {
@@ -26,8 +26,6 @@ public class TCPClient {
         Socket socket = argv.length == 0 ? new Socket(SERVER_HOST, SERVER_PORT, InetAddress.getByName(LOCALHOST), LOCAL_PORT) : getSecureSocket();
         OutputStream out = socket.getOutputStream();
         InputStream in = socket.getInputStream();
-
-        socket.setSoTimeout(5000);
 
         while (true) {
             String input = inFromUser.nextLine();

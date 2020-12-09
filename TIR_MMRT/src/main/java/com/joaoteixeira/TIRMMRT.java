@@ -37,9 +37,9 @@ public class TIRMMRT {
     public static final String PASSWORD = "password";
     public static final int BUF_SIZE = 1024;
     public static final String KEYSTORE_KEY = "./src/main/java/keystore/tirmmrt.key";
-    public static final String REMOTE_HOST = "172.28.0.6";
+    public static final String REMOTE_HOST = "172.28.0.6"; //172.28.0.6 or 127.0.0.1
     public static final int REMOTE_PORT = 1238;
-    public static final String TOR_HOST = "172.28.0.5";
+    public static final String TOR_HOST = "127.0.0.1"; //172.28.0.5  or 127.0.0.1
     public static final int TOR_PORT = 9050;
 
 
@@ -182,7 +182,7 @@ public class TIRMMRT {
             DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
             socket.send(sendPacket);
             bytesSent += BUF_SIZE;
-            socket.receive(sendPacket); //Important to make UDP flow traffic
+            socket.receive(receivePacket); //Important to make UDP flow traffic
         }
     }
 

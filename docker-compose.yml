@@ -15,6 +15,7 @@ services:
     build:
       context: .
       dockerfile: ./TCPClient/Dockerfile
+    command: sh -c "java TCPClient"
     networks:
       thesis:
         ipv4_address: 172.28.0.4
@@ -24,6 +25,7 @@ services:
     build:
       context: .
       dockerfile: ./UDPClient/Dockerfile
+    command: sh -c "java UDPClient"
     networks:
       thesis:
         ipv4_address: 172.28.0.3
@@ -36,6 +38,7 @@ services:
     networks:
       thesis:
         ipv4_address: 172.28.0.6
+              
 networks:
   thesis:
     ipam:
