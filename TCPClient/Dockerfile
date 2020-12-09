@@ -50,4 +50,3 @@ ENV JAVA_HOME=/opt/java/openjdk \
 WORKDIR /usr/src/tcpclient
 COPY /TCPClient/src /usr/src/tcpclient/
 RUN javac ./TCPClient.java
-#CMD ["java","TCPClient"]

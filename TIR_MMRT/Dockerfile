@@ -57,14 +57,37 @@ ENV STUNNEL_VERSION 5.57
 
 RUN wget -O - ftp://ftp.stunnel.org/stunnel/archive/5.x/stunnel-$STUNNEL_VERSION.tar.gz | tar -C /usr/local/src -zxv
 
-RUN openssl req -nodes -new -x509 -keyout /etc/ssl/key.pem -out /etc/ssl/cert.pem -days 365 -subj "/C=UK/ST=Warwickshire/L=Leamington/O=OrgName/OU=IT Department/CN=example.com"
+#RUN openssl req -nodes -new -x509 -keyout /etc/ssl/key.pem -out /etc/ssl/cert.pem -days 365 -subj "/C=UK/ST=Warwickshire/L=Leamington/O=OrgName/OU=IT Department/CN=example.com"
+COPY TIR_MMRT/src/main/java/keystore/stunnel_key.pem /etc/ssl/key.pem
+COPY TIR_MMRT/src/main/java/keystore/stunnel_cert.pem /etc/ssl/cert.pem
+
 ADD TIR_MMRT/stunnel/tirmmrt.conf /usr/local/etc/stunnel/stunnel.conf
 
 # Build stunnel
 RUN cd /usr/local/src/stunnel-$STUNNEL_VERSION && ./configure && make && make install
 
-WORKDIR /usr/src/tirmmrt
-COPY TIR_MMRT/src /usr/src/tirmmrt/
-RUN javac ./TIRMMRT.java
-#CMD ["java", "./TIRMMRT"]
-CMD ["stunnel"]
+ENTRYPOINT ["stunnel"]
+
+RUN apt-get update && apt-get install -y tor
+RUN tor --version
+
+ENTRYPOINT ["tor"]
+
+#RUN curl -L http://ifconfig.me
+#RUN curl --socks5 http://localhost:9050 -L http://ifconfig.me
+##
+ARG JAR_FILE=TIR_MMRT/target/TIRMMRT.jar
+ARG JAR_LIB_FILE=TIR_MMRT/target/lib/
+# cd /usr/local/runme
+WORKDIR /usr/local/runme
+# copy target/find-links.jar /usr/local/runme/app.jar
+COPY ${JAR_FILE} app.jar
+COPY TIR_MMRT/src/main/java/keystore ./src/main/java/keystore
+# copy project dependencies
+# cp -rf target/lib/  /usr/local/runme/lib
+ADD ${JAR_LIB_FILE} lib/
+# java -jar /usr/local/runme/app.jar
+ENTRYPOINT ["java","-jar","app.jar"]
+##
+
+

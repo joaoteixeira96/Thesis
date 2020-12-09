@@ -10,7 +10,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="TIR_MMRT" target="11" />
+      <module name="TIR_MMRT" target="1.11" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

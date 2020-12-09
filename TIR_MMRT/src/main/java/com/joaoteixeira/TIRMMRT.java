@@ -1,3 +1,5 @@
+package com.joaoteixeira;
+
 import Utils.DTLSOverDatagram;
 import Utils.Http;
 import org.apache.http.HttpHost;
@@ -35,9 +37,9 @@ public class TIRMMRT {
     public static final String PASSWORD = "password";
     public static final int BUF_SIZE = 1024;
     public static final String KEYSTORE_KEY = "./src/main/java/keystore/tirmmrt.key";
-    public static final String REMOTE_HOST = "127.0.0.1";
+    public static final String REMOTE_HOST = "172.28.0.6";
     public static final int REMOTE_PORT = 1238;
-    public static final String TOR_HOST = "127.0.0.1";
+    public static final String TOR_HOST = "172.28.0.5";
     public static final int TOR_PORT = 9050;
 
 
@@ -95,7 +97,7 @@ public class TIRMMRT {
         String request = String.format(
                 "GET %s HTTP/1.1\r\n" +
                         "Host: %s\r\n" +
-                        "User-Agent: X-TIRMMRT\r\n\r\n", path, REMOTE_HOST);
+                        "User-Agent: X-com.joaoteixeira.TIRMMRT\r\n\r\n", path, REMOTE_HOST);
 
         out.write(request.getBytes());
 

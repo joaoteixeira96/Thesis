@@ -49,6 +49,6 @@ ENV JAVA_HOME=/opt/java/openjdk \
 
 WORKDIR /usr/src/HttpServer
 COPY HttpServer/src /usr/src/HttpServer/
-COPY HttpServer/Files /usr/src/HttpServer/
+COPY HttpServer/Files /usr/src/HttpServer/Files
 RUN javac ./HttpServer.java
-
+ENTRYPOINT ["java","HttpServer"]
