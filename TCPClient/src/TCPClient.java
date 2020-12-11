@@ -12,9 +12,9 @@ import java.util.Scanner;
 public class TCPClient {
     public static final int SERVER_PORT = 1234;
     public static final int LOCAL_PORT = 1237;
-    public static final String LOCALHOST = "172.28.0.4";  //172.28.0.4 or 127.0.0.1;
+    public static final String LOCALHOST = "127.0.0.1";  //172.28.0.4 or 127.0.0.1;
     public static final String SERVER_HOST = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
-    public static final int BUF_SIZE = 1024;
+    public static final int BUF_SIZE = 512;
 
     public static void main(String[] argv) throws Exception {
         //TIRMMRT certificate for server side authentication
@@ -36,7 +36,7 @@ public class TCPClient {
                 inFromUser.close();
                 return;
             }
-            out.write(input.getBytes());
+            out.write(("GET " + input + " HTTP/1.1").getBytes());
             int n;
             Stats stats = new Stats();
             byte[] buffer = new byte[BUF_SIZE];

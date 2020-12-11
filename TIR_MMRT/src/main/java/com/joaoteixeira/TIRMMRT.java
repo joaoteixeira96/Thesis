@@ -35,11 +35,11 @@ import java.util.concurrent.Executors;
 public class TIRMMRT {
     public static final int PORT = 1234;
     public static final String PASSWORD = "password";
-    public static final int BUF_SIZE = 1024;
+    public static final int BUF_SIZE = 512;
     public static final String KEYSTORE_KEY = "./src/main/java/keystore/tirmmrt.key";
-    public static final String REMOTE_HOST = "172.28.0.6"; //172.28.0.6 or 127.0.0.1
+    public static final String REMOTE_HOST = "127.0.0.1"; //172.28.0.6 or 127.0.0.1
     public static final int REMOTE_PORT = 1238;
-    public static final String TOR_HOST = "127.0.0.1"; //172.28.0.5  or 127.0.0.1
+    public static final String TOR_HOST = "127.0.0.1";
     public static final int TOR_PORT = 9050;
 
 
@@ -150,7 +150,7 @@ public class TIRMMRT {
             while (true) {
                 byte[] buffer = new byte[socket.getReceiveBufferSize()];
                 in.read(buffer);
-                String filePath = new String(buffer);
+                String filePath = Http.parseHttpReply(new String(buffer))[1];
                 System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
                 //byte[] data = httpRequest(filePath);
                 byte[] data = torRequest(filePath);
