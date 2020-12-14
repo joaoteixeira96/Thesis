@@ -62,8 +62,8 @@ public class DTLSOverDatagram {
      */
     private static String passwd = "password";
 
-    private static String keyFilename = "./src/main/java/keystore/tirmmrt.key";
-    private static String trustFilename = "./src/main/java/keystore/cacerts";
+    private static String keyFilename = "./src/main/java/keystore/server.key";
+    private static String trustFilename = "./src/main/java/keystore/servers";
     private static Exception clientException = null;
     private static Exception serverException = null;
 
@@ -287,7 +287,7 @@ public class DTLSOverDatagram {
             if (rs == SSLEngineResult.Status.BUFFER_OVERFLOW) {
                 // the client maximum fragment size config does not work?
                 throw new Exception("Buffer overflow: " +
-                        "incorrect server maximum fragment size");
+                        "incorrect server.key maximum fragment size");
             } else if (rs == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
                 log(side, "Produce handshake packets: BUFFER_UNDERFLOW occured");
                 log(side, "Produce handshake packets: Handshake status: " + hs);
@@ -295,7 +295,7 @@ public class DTLSOverDatagram {
                 // config does not work?
                 if (hs != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
                     throw new Exception("Buffer underflow: " +
-                            "incorrect server maximum fragment size");
+                            "incorrect server.key maximum fragment size");
                 } // otherwise, ignore this packet
             } else if (rs == SSLEngineResult.Status.CLOSED) {
                 throw new Exception("SSLEngine has closed");
@@ -365,7 +365,7 @@ public class DTLSOverDatagram {
         if (rs == SSLEngineResult.Status.BUFFER_OVERFLOW) {
             // the client maximum fragment size config does not work?
             throw new Exception("Buffer overflow: " +
-                    "incorrect server maximum fragment size");
+                    "incorrect server.key maximum fragment size");
         } else if (rs == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
             // unlikely
             throw new Exception("Buffer underflow during wraping");

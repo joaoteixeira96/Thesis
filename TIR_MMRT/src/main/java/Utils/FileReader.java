@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.StringTokenizer;
 
 /*
- * Utils.ClassServer.java -- a simple file server that can serve
+ * Utils.ClassServer.java -- a simple file server.key that can serve
  * Http get request in both clear and secure channel
  */
 

@@ -10,3 +10,9 @@ TIR_MMRT/target/maven-status/maven-compiler-plugin/compile/default-compile/input
 TIR_MMRT/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/inputFiles.lst
 
 TIR_MMRT/target/TIR_MMRT-1.0-SNAPSHOT.jar
+
+HttpServer/out/production/HttpServer/keystore/cacerts
+
+HttpServer/out/production/HttpServer/keystore/tirmmrt.cert
+
+HttpServer/out/production/HttpServer/keystore/tirmmrt.key

@@ -36,7 +36,7 @@ public class TIRMMRT {
     public static final int PORT = 1234;
     public static final String PASSWORD = "password";
     public static final int BUF_SIZE = 512;
-    public static final String KEYSTORE_KEY = "./src/main/java/keystore/tirmmrt.key";
+    public static final String KEYSTORE_KEY = "./src/main/java/keystore/server.key";
     public static final String REMOTE_HOST = "127.0.0.1"; //172.28.0.6 or 127.0.0.1
     public static final int REMOTE_PORT = 1238;
     public static final String TOR_HOST = "127.0.0.1";
@@ -60,7 +60,7 @@ public class TIRMMRT {
                 System.err.println("Cannot open the port on TCP");
                 ioe.printStackTrace();
             } finally {
-                System.out.println("Closing TCP server");
+                System.out.println("Closing TCP server.key");
                 if (executor != null) {
                     executor.shutdown();
                 }
@@ -82,7 +82,7 @@ public class TIRMMRT {
                 System.err.println("Cannot open the port on UDP");
                 ioe.printStackTrace();
             } finally {
-                System.out.println("Closing UDP server");
+                System.out.println("Closing UDP server.key");
             }
         }).start();
     }
@@ -207,7 +207,7 @@ public class TIRMMRT {
 
         SSLServerSocketFactory ssf;
         try {
-            // set up key manager to do server authentication
+            // set up key manager to do server.key authentication
             SSLContext ctx;
             KeyManagerFactory kmf;
             KeyStore ks;

@@ -18,7 +18,7 @@ public class TCPClient {
 
     public static void main(String[] argv) throws Exception {
         //TIRMMRT certificate for server side authentication
-        System.setProperty("javax.net.ssl.trustStore", "./src/keystore/cacerts");
+        System.setProperty("javax.net.ssl.trustStore", "./src/keystore/servers");
         System.setProperty("javax.net.ssl.trustStoreType", "JKS");
         System.setProperty("javax.net.ssl.trustStorePassword", "password");
 
