@@ -5,7 +5,6 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
 
@@ -13,7 +12,7 @@ public class TCPClient {
     public static final int SERVER_PORT = 1234;
     public static final int LOCAL_PORT = 1237;
     public static final String LOCALHOST = "127.0.0.1";  //172.28.0.4 or 127.0.0.1;
-    public static final String SERVER_HOST = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
+    public static final String SERVER_HOST = "localhost"; // 172.28.0.5 or 127.0.0.1;
     public static final int BUF_SIZE = 512;
 
     public static void main(String[] argv) throws Exception {
@@ -23,7 +22,7 @@ public class TCPClient {
         System.setProperty("javax.net.ssl.trustStorePassword", "password");
 
         Scanner inFromUser = new Scanner(System.in);
-        Socket socket = argv.length == 0 ? new Socket(SERVER_HOST, SERVER_PORT, InetAddress.getByName(LOCALHOST), LOCAL_PORT) : getSecureSocket();
+        Socket socket = argv.length == 0 ? new Socket(SERVER_HOST, SERVER_PORT) : getSecureSocket();
         OutputStream out = socket.getOutputStream();
         InputStream in = socket.getInputStream();
 
@@ -71,7 +70,7 @@ public class TCPClient {
         SSLSocketFactory factory =
                 (SSLSocketFactory) SSLSocketFactory.getDefault();
         SSLSocket socket =
-                (SSLSocket) factory.createSocket(SERVER_HOST, SERVER_PORT, InetAddress.getByName(LOCALHOST), LOCAL_PORT);
+                (SSLSocket) factory.createSocket(SERVER_HOST, SERVER_PORT);
         socket.startHandshake();
         return socket;
     }

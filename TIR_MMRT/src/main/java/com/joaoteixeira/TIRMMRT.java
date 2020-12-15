@@ -37,7 +37,7 @@ public class TIRMMRT {
     public static final String PASSWORD = "password";
     public static final int BUF_SIZE = 512;
     public static final String KEYSTORE_KEY = "./src/main/java/keystore/server.key";
-    public static final String REMOTE_HOST = "127.0.0.1"; //172.28.0.6 or 127.0.0.1
+    public static final String REMOTE_HOST = "localhost"; //172.28.0.6 or 127.0.0.1
     public static final int REMOTE_PORT = 1238;
     public static final String TOR_HOST = "127.0.0.1";
     public static final int TOR_PORT = 9050;
@@ -78,69 +78,13 @@ public class TIRMMRT {
                         doDTLS(socket);
                     }
                 }
-            } catch (IOException | InterruptedException ioe) {
+            } catch (IOException ioe) {
                 System.err.println("Cannot open the port on UDP");
                 ioe.printStackTrace();
             } finally {
                 System.out.println("Closing UDP server.key");
             }
         }).start();
-    }
-
-    //TIR-MMRT directly requests HttpServer without going throw Tor
-    private static byte[] httpRequest(String path) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        Socket socket = new Socket(REMOTE_HOST, REMOTE_PORT);
-        OutputStream out = socket.getOutputStream();
-        InputStream in = socket.getInputStream();
-
-        String request = String.format(
-                "GET %s HTTP/1.1\r\n" +
-                        "Host: %s\r\n" +
-                        "User-Agent: X-com.joaoteixeira.TIRMMRT\r\n\r\n", path, REMOTE_HOST);
-
-        out.write(request.getBytes());
-
-        System.out.println("\nSent Request:\n" + request);
-        System.out.println("Got Reply:\n");
-        System.out.println("\nReply Header:\n");
-
-        baos.write(("\nSent Request:\n\n" + request).getBytes());
-        baos.write(("Got Reply:\n").getBytes());
-        baos.write(("\nReply Header:\n").getBytes());
-
-        String answerLine = Http.readLine(in);  // first line is always present
-        System.out.println(answerLine);
-        baos.write((answerLine + "\r\n").getBytes());
-        String[] reply = Http.parseHttpReply(answerLine);
-
-        answerLine = Http.readLine(in);
-        while (!answerLine.equals("")) {
-            System.out.println(answerLine);
-            baos.write((answerLine + "\r\n").getBytes());
-            answerLine = Http.readLine(in);
-        }
-
-        if (reply[1].equals("200")) {
-
-            System.out.println("\r\nReply Body:\n");
-            baos.write(("\r\nReply Body:\n").getBytes());
-            long time0 = System.currentTimeMillis();
-            int n;
-            byte[] buffer = new byte[BUF_SIZE];
-
-            while ((n = in.read(buffer)) >= 0) {
-                System.out.write(buffer, 0, n);
-                baos.write(buffer, 0, n);
-            }
-        } else {
-            System.out.println("Ooops, received status:" + reply[1]);
-            baos.write(("Ooops, received status:" + reply[1] + "\n").getBytes());
-        }
-        baos.write("\n".getBytes());
-        socket.close();
-        baos.close();
-        return baos.toByteArray();
     }
 
     private static void doTCP_TLS(Socket socket) {
@@ -167,7 +111,7 @@ public class TIRMMRT {
         return ss;
     }
 
-    private static void doUDP(DatagramSocket socket) throws IOException, InterruptedException {
+    private static void doUDP(DatagramSocket socket) throws IOException {
         //receive
         byte[] buf = new byte[socket.getReceiveBufferSize()];
         DatagramPacket receivePacket = new DatagramPacket(buf, buf.length);

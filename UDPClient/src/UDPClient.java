@@ -11,16 +11,15 @@ import java.util.Scanner;
 
 class UDPClient {
     public static final int REMOTE_PORT = 1234;
-    public static final int LOCAL_PORT = 1236;
 
-    public static final String REMOTE_HOST = "127.0.0.1";//"172.28.0.5 or 127.0.0.1";
+    public static final String REMOTE_HOST = "localhost";//"172.28.0.5 or 127.0.0.1";
     public static final int BUF_SIZE = 1024;
 
     public static void main(String[] args) throws Exception {
         Scanner inFromUser = new Scanner(System.in);
         InetAddress IPAddress = InetAddress.getByName(REMOTE_HOST);
         while (true) {
-            DatagramSocket clientSocket = new DatagramSocket(LOCAL_PORT);
+            DatagramSocket clientSocket = new DatagramSocket();
             //send
             String input = inFromUser.nextLine();
             byte [] path = input.getBytes();
