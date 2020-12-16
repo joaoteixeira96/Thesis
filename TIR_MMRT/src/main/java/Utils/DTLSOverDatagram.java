@@ -54,7 +54,7 @@ public class DTLSOverDatagram {
 
     private static int MAX_HANDSHAKE_LOOPS = 200;
     private static int MAX_APP_READ_LOOPS = 60;
-    private static int BUFFER_SIZE = 1024;
+    private static int BUFFER_SIZE = 512;
     private static int MAXIMUM_PACKET_SIZE = 32768;
 
     /*
@@ -62,8 +62,8 @@ public class DTLSOverDatagram {
      */
     private static String passwd = "password";
 
-    private static String keyFilename = "./src/main/java/keystore/server.key";
-    private static String trustFilename = "./src/main/java/keystore/servers";
+    private static String keyFilename = "./keystore/server.key";
+    private static String trustFilename = "./keystore/servers";
     private static Exception clientException = null;
     private static Exception serverException = null;
 

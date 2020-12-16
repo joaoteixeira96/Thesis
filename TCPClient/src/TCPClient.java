@@ -10,9 +10,7 @@ import java.util.Scanner;
 
 public class TCPClient {
     public static final int SERVER_PORT = 1234;
-    public static final int LOCAL_PORT = 1237;
-    public static final String LOCALHOST = "127.0.0.1";  //172.28.0.4 or 127.0.0.1;
-    public static final String SERVER_HOST = "localhost"; // 172.28.0.5 or 127.0.0.1;
+    public static final String SERVER_HOST = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
     public static final int BUF_SIZE = 512;
 
     public static void main(String[] argv) throws Exception {
@@ -26,44 +24,18 @@ public class TCPClient {
         OutputStream out = socket.getOutputStream();
         InputStream in = socket.getInputStream();
 
-        while (true) {
-            String input = inFromUser.nextLine();
-            if (input.equalsIgnoreCase("quit")) {
-                socket.close();
-                out.close();
-                in.close();
-                inFromUser.close();
-                return;
-            }
-            out.write(("GET " + input + " HTTP/1.1").getBytes());
-            int n;
-            Stats stats = new Stats();
-            byte[] buffer = new byte[BUF_SIZE];
-            n = in.read(buffer, 0, buffer.length);
-            int contentLength = getContentLength(buffer);
-            while (true) {
-                System.out.write(buffer, 0, n);
-                stats.newRequest(n);
-                contentLength = contentLength - n;
-                if (contentLength < 0) break;
-                n = in.read(buffer, 0, buffer.length);
-            }
-            stats.printReport();
+        String input = inFromUser.nextLine();
+        out.write(("GET " + input + " HTTP/1.1").getBytes());
+        Stats stats = new Stats();
+        int n = 0;
+        byte[] buffer = new byte[BUF_SIZE];
+        while ((n = in.read(buffer, 0, buffer.length)) != -1) {
+            stats.newRequest(n);
+            System.out.write(buffer, 0, n);
         }
-    }
+        socket.close();
+        stats.printReport();
 
-    private static int getContentLength(byte[] data) {
-        String s = new String(data);
-        try {
-            String[] strArr = s.split("Content-Length: ");
-            if (strArr.length > 1) {
-                strArr = strArr[1].split(" ");
-                return Integer.parseInt(strArr[0]);
-            }
-        } catch (Exception e) {
-            return 0;
-        }
-        return 0;
     }
 
     private static Socket getSecureSocket() throws IOException {

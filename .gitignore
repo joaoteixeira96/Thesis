@@ -16,3 +16,9 @@ HttpServer/out/production/HttpServer/keystore/cacerts
 HttpServer/out/production/HttpServer/keystore/tirmmrt.cert
 
 HttpServer/out/production/HttpServer/keystore/tirmmrt.key
+
+TIR_MMRT/.idea/libraries/Maven__commons_codec_commons_codec_1_11.xml
+
+TIR_MMRT/.idea/libraries/Maven__org_apache_httpcomponents_httpclient_4_5_13.xml
+
+TIR_MMRT/.idea/libraries/Maven__org_apache_httpcomponents_httpcore_4_4_13.xml

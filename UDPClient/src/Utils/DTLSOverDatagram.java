@@ -57,7 +57,7 @@ public class DTLSOverDatagram {
 
     private static int MAX_HANDSHAKE_LOOPS = 200;
     private static int MAX_APP_READ_LOOPS = 60;
-    private static int BUFFER_SIZE = 1024; //32768
+    private static int BUFFER_SIZE = 512; //32768
     private static int MAXIMUM_PACKET_SIZE = 32768;
 
     /*

@@ -12,24 +12,22 @@ import java.util.Scanner;
 class UDPClient {
     public static final int REMOTE_PORT = 1234;
 
-    public static final String REMOTE_HOST = "localhost";//"172.28.0.5 or 127.0.0.1";
-    public static final int BUF_SIZE = 1024;
+    public static final String REMOTE_HOST = "127.0.0.1";//"172.28.0.5 or 127.0.0.1";
+    public static final int BUF_SIZE = 512;
 
     public static void main(String[] args) throws Exception {
         Scanner inFromUser = new Scanner(System.in);
         InetAddress IPAddress = InetAddress.getByName(REMOTE_HOST);
-        while (true) {
-            DatagramSocket clientSocket = new DatagramSocket();
-            //send
-            String input = inFromUser.nextLine();
-            byte [] path = input.getBytes();
-            if ((args.length == 0)) {
-                doUDP(path, IPAddress, clientSocket);
-            } else {
-                doDTLS(clientSocket, path);
-            }
-            clientSocket.close();
+        DatagramSocket clientSocket = new DatagramSocket();
+        //send
+        String input = inFromUser.nextLine();
+        byte [] path = input.getBytes();
+        if ((args.length == 0)) {
+            doUDP(path, IPAddress, clientSocket);
+        } else {
+            doDTLS(clientSocket, path);
         }
+
     }
     private static void doUDP(byte [] path, InetAddress IPAddress, DatagramSocket clientSocket){
         try{
@@ -37,15 +35,14 @@ class UDPClient {
             DatagramPacket sendPacket = new DatagramPacket(path, path.length, IPAddress, REMOTE_PORT);
             clientSocket.send(sendPacket);
             //receive
-            byte[] sendData = new byte[BUF_SIZE];
-            DatagramPacket receivedPacket = new DatagramPacket(sendData, sendData.length);
+            byte[] receive= new byte[BUF_SIZE];
+            DatagramPacket receivedPacket = new DatagramPacket(receive, receive.length);
             clientSocket.receive(receivedPacket);
-            int contentLength = getContentLength(sendData);
+            int contentLength = getContentLength(receive);
             while (true) {
                 stats.newRequest(receivedPacket.getLength());
                 contentLength -= receivedPacket.getLength();
                 System.out.println(new String(receivedPacket.getData()));
-                clientSocket.send(sendPacket); //Important to make UDP flow traffic
                 if(contentLength<0) break;
                 clientSocket.receive(receivedPacket);
             }
@@ -53,6 +50,7 @@ class UDPClient {
         } catch (IOException e) {
             e.printStackTrace();
             System.err.println("Unable to do UDP");
+            clientSocket.close();
         }
     }
     private static void doDTLS(DatagramSocket socket, byte[] filePath){
