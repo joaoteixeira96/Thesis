@@ -94,17 +94,17 @@ public class TIRMMRT {
             ExecutorService executor = null;
             try (ServerSocket server = getSecureSocketTLS(local_port_secure)) {
                 executor = Executors.newFixedThreadPool(5);
-                System.out.println("Listening on TCP port " + local_port_secure + ", waiting for file request!");
+                System.out.println("Listening on TLS port " + local_port_secure + ", waiting for file request!");
                 while (true) {
                     final Socket socket = server.accept();
-                    System.out.println("TCP connection " + socket.getInetAddress() + ":" + socket.getPort());
+                    System.out.println("TLS connection " + socket.getInetAddress() + ":" + socket.getPort());
                     executor.execute(() -> doTCP_TLS(socket));
                 }
             } catch (IOException ioe) {
-                System.err.println("Cannot open the port on TCP");
+                System.err.println("Cannot open the port on TLS");
                 ioe.printStackTrace();
             } finally {
-                System.out.println("Closing TCP server.key");
+                System.out.println("Closing TLS server");
                 if (executor != null) {
                     executor.shutdown();
                 }
@@ -116,6 +116,7 @@ public class TIRMMRT {
             try (DatagramSocket socket = new DatagramSocket(local_port_unsecure)) {
                 System.out.println("Listening on UDP port " + local_port_unsecure + ", waiting for file request!");
                 while (true) {
+                    System.out.println("UDP connection " + socket.getInetAddress() + ":" + socket.getPort());
                     doUDP(socket);
                 }
             } catch (Exception e) {
@@ -132,6 +133,7 @@ public class TIRMMRT {
             try (DatagramSocket socket = new DatagramSocket(local_port_secure)) {
                 System.out.println("Listening on DTLS port " + local_port_secure + ", waiting for file request!");
                 while (true) {
+                    System.out.println("DTLS connection " + socket.getInetAddress() + ":" + socket.getPort());
                     doDTLS(socket);
                 }
             } catch (Exception e) {
@@ -142,6 +144,7 @@ public class TIRMMRT {
                 System.out.println("Closing DTLS server");
             }
         }).start();
+
     }
 
     private static void doTCP_TLS(Socket socket) {
@@ -247,8 +250,7 @@ public class TIRMMRT {
             }
         }, 0, bypass_timer);
     }
-
-
+    
     private static byte[] bypass(String path) throws Exception {
         String my_address = local_host + ":" + local_port_unsecure;
         System.err.println(my_address);

@@ -36,7 +36,10 @@ package Utils;
 
 import javax.net.ssl.*;
 import java.io.FileInputStream;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
@@ -54,7 +57,7 @@ public class DTLSOverDatagram {
 
     private static int MAX_HANDSHAKE_LOOPS = 200;
     private static int MAX_APP_READ_LOOPS = 60;
-    private static int BUFFER_SIZE = 1024;
+    private static int BUFFER_SIZE = 1024; //32768
     private static int MAXIMUM_PACKET_SIZE = 32768;
 
     /*
@@ -62,8 +65,8 @@ public class DTLSOverDatagram {
      */
     private static String passwd = "password";
 
-    private static String keyFilename = "./keystore/server.key";
-    private static String trustFilename = "./keystore/servers";
+    private static String keyFilename = "./src/keystore/client.key";
+    private static String trustFilename = "./src/keystore/servers";
     private static Exception clientException = null;
     private static Exception serverException = null;
 
@@ -85,10 +88,8 @@ public class DTLSOverDatagram {
     }
 
     // handshake
-    public InetSocketAddress handshake(SSLEngine engine, DatagramSocket socket,
-                                       SocketAddress peerAddr, String side) throws Exception {
-
-        InetSocketAddress isa = null;
+    public void handshake(SSLEngine engine, DatagramSocket socket,
+                          SocketAddress peerAddr, String side) throws Exception {
         boolean endLoops = false;
         int loops = MAX_HANDSHAKE_LOOPS;
         engine.beginHandshake();
@@ -113,7 +114,6 @@ public class DTLSOverDatagram {
                     DatagramPacket packet = new DatagramPacket(buf, buf.length);
                     try {
                         socket.receive(packet);
-                        isa = new InetSocketAddress(packet.getAddress(), packet.getPort());
                     } catch (SocketTimeoutException ste) {
                         log(side, "Warning: " + ste);
 
@@ -179,7 +179,7 @@ public class DTLSOverDatagram {
             } else if (hs == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
                 List<DatagramPacket> packets = new ArrayList<>();
                 boolean finished = produceHandshakePackets(
-                        engine, isa, side, packets);
+                        engine, peerAddr, side, packets);
 
                 for (DatagramPacket p : packets) {
                     socket.send(p);
@@ -225,7 +225,6 @@ public class DTLSOverDatagram {
         if (hs != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
             throw new Exception("Unexpected handshake status " + hs);
         }
-        return isa;
     }
 
     // deliver application data
@@ -242,26 +241,29 @@ public class DTLSOverDatagram {
     }
 
     // receive application data
-    public String receiveAppData(SSLEngine engine,
-                                 DatagramSocket socket) throws Exception {
+    public void receiveAppData(SSLEngine engine,
+                               DatagramSocket socket) throws Exception {
+
         int loops = MAX_APP_READ_LOOPS;
         while (true) {
             if (--loops < 0) {
                 throw new RuntimeException(
                         "Too much loops to receive application data");
             }
-            byte[] buf = new byte[BUFFER_SIZE];
+            byte[] buf = new byte[socket.getReceiveBufferSize()];
             DatagramPacket packet = new DatagramPacket(buf, buf.length);
             socket.receive(packet);
             ByteBuffer netBuffer = ByteBuffer.wrap(buf, 0, packet.getLength());
-            ByteBuffer recBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+            ByteBuffer recBuffer = ByteBuffer.allocate(packet.getLength());
             SSLEngineResult rs = engine.unwrap(netBuffer, recBuffer);
             recBuffer.flip();
             if (recBuffer.remaining() != 0) {
-                return new String(recBuffer.array(), StandardCharsets.UTF_8);
+                System.out.println(new String(recBuffer.array(), StandardCharsets.UTF_8));
+                break;
             }
         }
     }
+
 
     // produce handshake packets
     boolean produceHandshakePackets(SSLEngine engine, SocketAddress socketAddr,
@@ -287,7 +289,7 @@ public class DTLSOverDatagram {
             if (rs == SSLEngineResult.Status.BUFFER_OVERFLOW) {
                 // the client maximum fragment size config does not work?
                 throw new Exception("Buffer overflow: " +
-                        "incorrect server.key maximum fragment size");
+                        "incorrect server maximum fragment size");
             } else if (rs == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
                 log(side, "Produce handshake packets: BUFFER_UNDERFLOW occured");
                 log(side, "Produce handshake packets: Handshake status: " + hs);
@@ -295,7 +297,7 @@ public class DTLSOverDatagram {
                 // config does not work?
                 if (hs != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
                     throw new Exception("Buffer underflow: " +
-                            "incorrect server.key maximum fragment size");
+                            "incorrect server maximum fragment size");
                 } // otherwise, ignore this packet
             } else if (rs == SSLEngineResult.Status.CLOSED) {
                 throw new Exception("SSLEngine has closed");
@@ -365,7 +367,7 @@ public class DTLSOverDatagram {
         if (rs == SSLEngineResult.Status.BUFFER_OVERFLOW) {
             // the client maximum fragment size config does not work?
             throw new Exception("Buffer overflow: " +
-                    "incorrect server.key maximum fragment size");
+                    "incorrect server maximum fragment size");
         } else if (rs == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
             // unlikely
             throw new Exception("Buffer underflow during wraping");
@@ -376,10 +378,13 @@ public class DTLSOverDatagram {
         } else {
             throw new Exception("Can't reach here, result is " + rs);
         }
+
+        // SSLEngineResult.Status.OK:
         if (appNet.hasRemaining()) {
-            int datasize = getContentLength(source.array());
+            byte[] ba = new byte[appNet.remaining()];
+            appNet.get(ba);
             DatagramPacket packet =
-                    new DatagramPacket(appNet.array(), datasize, socketAddr);
+                    new DatagramPacket(ba, ba.length, socketAddr);
             packets.add(packet);
         }
 
@@ -437,20 +442,6 @@ public class DTLSOverDatagram {
         sslCtx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         return sslCtx;
-    }
-
-    private static int getContentLength(byte[] data) {
-        String s = new String(data);
-        try {
-            String[] strArr = s.split("Content-Length: ");
-            if (strArr.length > 1) {
-                strArr = strArr[1].split(" ");
-                return Integer.parseInt(strArr[0]);
-            }
-        } catch (Exception e) {
-            return 0;
-        }
-        return 0;
     }
 
     static void log(String side, String message) {
