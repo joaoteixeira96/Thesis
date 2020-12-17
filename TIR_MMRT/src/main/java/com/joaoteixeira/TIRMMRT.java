@@ -40,8 +40,9 @@ public class TIRMMRT {
     public static final String KEYSTORE_KEY = "./keystore/server.key";
     public static final int BUF_SIZE = 512;
 
-    public static String local_address = "127.0.0.1";
-    public static int local_port = 1234;
+    public static String local_host = "127.0.0.1";
+    public static int local_port_unsecure = 1234;
+    public static int local_port_secure = 2000;
 
     public static String remote_host = "localhost"; //172.28.0.6 or 127.0.0.1
     public static int remote_port = 1238;
@@ -49,7 +50,7 @@ public class TIRMMRT {
     public static String tor_host = "127.0.0.1";
     public static int tor_port = 9050;
 
-    public static int maxBypassTimer = 0;
+    public static int bypass_timer = 0;
     public static String bypassAddress = null;
 
     public static List<String> tirmmrt_network = null;
@@ -65,12 +66,35 @@ public class TIRMMRT {
 
         readConfigurationFiles();
         bypassTriggeredTimer();
+
         // TCP
         new Thread(() -> {
             ExecutorService executor = null;
-            try (ServerSocket server = (args.length == 0) ? new ServerSocket(local_port) : getSecureSocketTLS()) {
+            try (ServerSocket server = new ServerSocket(local_port_unsecure)) {
                 executor = Executors.newFixedThreadPool(5);
-                System.out.println("Listening on TCP port " + local_port + ", waiting for file request!");
+                System.out.println("Listening on TCP port " + local_port_unsecure + ", waiting for file request!");
+                while (true) {
+                    final Socket socket = server.accept();
+                    System.out.println("TCP connection " + socket.getInetAddress() + ":" + socket.getPort());
+                    executor.execute(() -> doTCP_TLS(socket));
+                }
+            } catch (IOException ioe) {
+                System.err.println("Cannot open the port on TCP");
+                ioe.printStackTrace();
+            } finally {
+                System.out.println("Closing TCP server.key");
+                if (executor != null) {
+                    executor.shutdown();
+                }
+            }
+        }).start();
+
+        // TLS
+        new Thread(() -> {
+            ExecutorService executor = null;
+            try (ServerSocket server = getSecureSocketTLS(local_port_secure)) {
+                executor = Executors.newFixedThreadPool(5);
+                System.out.println("Listening on TCP port " + local_port_secure + ", waiting for file request!");
                 while (true) {
                     final Socket socket = server.accept();
                     System.out.println("TCP connection " + socket.getInetAddress() + ":" + socket.getPort());
@@ -89,21 +113,33 @@ public class TIRMMRT {
 
         // UDP
         new Thread(() -> {
-            try (DatagramSocket socket = new DatagramSocket(local_port)) {
-                System.out.println("Listening on UDP port " + local_port + ", waiting for file request!");
+            try (DatagramSocket socket = new DatagramSocket(local_port_unsecure)) {
+                System.out.println("Listening on UDP port " + local_port_unsecure + ", waiting for file request!");
                 while (true) {
-                    if ((args.length == 0)) {
-                        doUDP(socket);
-                    } else {
-                        doDTLS(socket);
-                    }
+                    doUDP(socket);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
                 System.err.println("Cannot open the port on UDP");
 
             } finally {
-                System.out.println("Closing UDP server.key");
+                System.out.println("Closing UDP server");
+            }
+        }).start();
+
+        //DTLS
+        new Thread(() -> {
+            try (DatagramSocket socket = new DatagramSocket(local_port_secure)) {
+                System.out.println("Listening on DTLS port " + local_port_secure + ", waiting for file request!");
+                while (true) {
+                    doDTLS(socket);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.err.println("Cannot open the port on DTLS");
+
+            } finally {
+                System.out.println("Closing DTLS server");
             }
         }).start();
     }
@@ -124,9 +160,9 @@ public class TIRMMRT {
         }
     }
 
-    private static ServerSocket getSecureSocketTLS() throws IOException {
+    private static ServerSocket getSecureSocketTLS(int port) throws IOException {
         ServerSocketFactory ssf = getServerSocketFactory();
-        ServerSocket ss = ssf.createServerSocket(local_port);
+        ServerSocket ss = ssf.createServerSocket(port);
         return ss;
     }
 
@@ -176,13 +212,16 @@ public class TIRMMRT {
 
             prop.load(input);
 
+            local_host = prop.getProperty("local_host");
+            local_port_unsecure = Integer.parseInt(prop.getProperty("local_port_unsecure"));
+            local_port_secure = Integer.parseInt(prop.getProperty("local_port_secure"));
             remote_host = prop.getProperty("remote_host");
             remote_port = Integer.parseInt(prop.getProperty("remote_port"));
             tor_host = prop.getProperty("tor_host");
             tor_port = Integer.parseInt(prop.getProperty("tor_port"));
             stunnel_port = prop.getProperty("stunnel_port");
             strategy = prop.getProperty("strategy");
-            maxBypassTimer = Integer.parseInt(prop.getProperty("timer"));
+            bypass_timer = Integer.parseInt(prop.getProperty("bypass_timer"));
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -191,9 +230,6 @@ public class TIRMMRT {
         Scanner sc = new Scanner(file);
         while (sc.hasNextLine())
             tirmmrt_network.add(sc.nextLine());
-        //Set local_address
-        local_address = tirmmrt_network.get(0).split(":")[0];
-        local_port = Integer.parseInt(tirmmrt_network.get(0).split(":")[1]);
         sc.close();
     }
 
@@ -209,17 +245,17 @@ public class TIRMMRT {
             public void run() {
                 randomlyChooseBypassAddress();
             }
-        }, 0, maxBypassTimer);
+        }, 0, bypass_timer);
     }
 
 
     private static byte[] bypass(String path) throws Exception {
-        String my_address = local_address + ":" + local_port;
+        String my_address = local_host + ":" + local_port_unsecure;
         System.err.println(my_address);
         if (bypassAddress.equals(my_address)) {
             return torRequest(path);
         } else {
-            System.err.println("TIR-MMRT connection :" + local_address + " ---> " + bypassAddress);
+            System.err.println("TIR-MMRT connection :" + my_address + " ---> " + bypassAddress);
             return bypassConnection(path);
         }
     }
@@ -233,7 +269,7 @@ public class TIRMMRT {
                 .build();
 
         HttpClient httpClient = HttpClients.custom().setSSLContext(sslContext).build();
-        HttpResponse response = httpClient.execute(new HttpGet("https://localhost:" + stunnel_port + path));
+        HttpResponse response = httpClient.execute(new HttpGet("https://localhost:" + stunnel_port + path.trim()));
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Arrays.stream(response.getAllHeaders()).forEach(header -> {
             try {

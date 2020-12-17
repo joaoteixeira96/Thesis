@@ -9,7 +9,7 @@ import java.net.Socket;
 import java.util.Scanner;
 
 public class TCPClient {
-    public static final int SERVER_PORT = 1234;
+    public static final int SERVER_PORT = 2000;
     public static final String SERVER_HOST = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
     public static final int BUF_SIZE = 512;
 
