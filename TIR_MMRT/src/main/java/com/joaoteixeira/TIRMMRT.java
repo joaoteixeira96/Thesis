@@ -38,7 +38,7 @@ public class TIRMMRT {
 
     public static final String PASSWORD = "password";
     public static final String KEYSTORE_KEY = "./keystore/server.key";
-    public static final int BUF_SIZE = 512;
+    public static final int BUF_SIZE = 1024;
 
     public static String local_host = "127.0.0.1";
     public static int local_port_unsecure = 1234;
@@ -178,16 +178,15 @@ public class TIRMMRT {
         byte[] data = bypass(filePath);
         //send
         int bytesSent = 0;
-        List<DatagramPacket> packets = new ArrayList<>();
         while (bytesSent <= data.length) {
-            byte[] sendData = Arrays.copyOfRange(data, bytesSent, (bytesSent + BUF_SIZE > data.length) ? bytesSent + (data.length - bytesSent) : bytesSent + BUF_SIZE); //prevent sending bytes overflow
+            byte[] sendData = Arrays.copyOfRange(data, bytesSent, bytesSent + BUF_SIZE); //prevent sending bytes overflow
             DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
-            packets.add(sendPacket);
+            socket.send(sendPacket);
+            socket.receive(sendPacket);
             bytesSent += BUF_SIZE;
         }
-        for (DatagramPacket p : packets) {
-            socket.send(p);
-        }
+        byte[] endTransmission = "terminate_packet_receive".getBytes();
+        socket.send(new DatagramPacket(endTransmission, endTransmission.length, receivePacket.getAddress(), receivePacket.getPort()));
     }
 
     private static void doDTLS(DatagramSocket socket) {

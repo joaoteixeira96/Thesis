@@ -17,7 +17,7 @@ public class Client {
     public static int remote_port_secure = 2000;
     public static int remote_port_unsecure = 1234;
     public static String remote_host = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
-    public static final int BUF_SIZE = 512;
+    public static final int BUF_SIZE = 1024;
 
     public static void main(String[] argv) throws Exception {
         //TIRMMRT certificate for server side authentication
@@ -27,39 +27,41 @@ public class Client {
 
         readConfigurationFiles();
 
-        Scanner inFromUser = new Scanner(System.in);
-        String path = null;
-        String protocol = null;
-        try {
-            String[] input = inFromUser.nextLine().split(" ");
-            path = input[0];
-            protocol = input[1];
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Usage: filePath protocol(tcp,udp,tls,dtls)");
-            System.exit(1);
-        }
-        switch (protocol.toLowerCase()) {
-            case "tcp":
-                Socket tcp_socket = new Socket(remote_host, remote_port_unsecure);
-                do_TCP_TLS(tcp_socket, path);
-                tcp_socket.close();
-                break;
-            case "tls":
-                Socket tls_socket = getSecureSocket(remote_host, remote_port_secure);
-                do_TCP_TLS(tls_socket, path);
-                tls_socket.close();
-                break;
-            case "udp":
-                DatagramSocket udp_socket = new DatagramSocket();
-                doUDP(path.getBytes(), udp_socket, remote_host, remote_port_unsecure);
-                udp_socket.close();
-                break;
-            case "dtls":
-                DatagramSocket dtls_socket = new DatagramSocket();
-                doDTLS(dtls_socket, path.getBytes(), remote_host, remote_port_secure);
-                dtls_socket.close();
-                break;
+        while (true) {
+            Scanner inFromUser = new Scanner(System.in);
+            String path = null;
+            String protocol = null;
+            try {
+                String[] input = inFromUser.nextLine().split(" ");
+                path = input[0];
+                protocol = input[1];
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.err.println("Usage: filePath protocol(tcp,udp,tls,dtls)");
+                System.exit(1);
+            }
+            switch (protocol.toLowerCase()) {
+                case "tcp":
+                    Socket tcp_socket = new Socket(remote_host, remote_port_unsecure);
+                    do_TCP_TLS(tcp_socket, path);
+                    tcp_socket.close();
+                    break;
+                case "tls":
+                    Socket tls_socket = getSecureSocket(remote_host, remote_port_secure);
+                    do_TCP_TLS(tls_socket, path);
+                    tls_socket.close();
+                    break;
+                case "udp":
+                    DatagramSocket udp_socket = new DatagramSocket();
+                    doUDP(path.getBytes(), udp_socket, remote_host, remote_port_unsecure);
+                    udp_socket.close();
+                    break;
+                case "dtls":
+                    DatagramSocket dtls_socket = new DatagramSocket();
+                    doDTLS(dtls_socket, path.getBytes(), remote_host, remote_port_secure);
+                    dtls_socket.close();
+                    break;
+            }
         }
     }
 
@@ -113,14 +115,19 @@ public class Client {
             //receive
             byte[] receive = new byte[BUF_SIZE];
             DatagramPacket receivedPacket = new DatagramPacket(receive, receive.length);
-            clientSocket.receive(receivedPacket);
-            int contentLength = getContentLength(receive);
-            while (true) {
-                stats.newRequest(receivedPacket.getLength());
-                contentLength -= receivedPacket.getLength();
-                System.out.println(new String(receivedPacket.getData()));
-                if (contentLength < 0) break;
-                clientSocket.receive(receivedPacket);
+            try {
+                clientSocket.setSoTimeout(2000);
+                while (true) {
+                    clientSocket.receive(receivedPacket);
+                    String receivedData = new String(receivedPacket.getData());
+                    if (receivedData.contains("terminate_packet_receive")) {
+                        break;
+                    } //server side sends terminate receive packet
+                    clientSocket.send(receivedPacket);
+                    stats.newRequest(receivedPacket.getLength());
+                    System.out.println(receivedData);
+                }
+            } catch (Exception e) {
             }
             stats.printReport();
         } catch (IOException e) {
