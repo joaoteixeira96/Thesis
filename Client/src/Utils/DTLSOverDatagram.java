@@ -57,7 +57,7 @@ public class DTLSOverDatagram {
 
     private static int MAX_HANDSHAKE_LOOPS = 200;
     private static int MAX_APP_READ_LOOPS = 60;
-    private static int BUFFER_SIZE = 1024; //32768
+    private static int BUFFER_SIZE = 1024;
     private static int MAXIMUM_PACKET_SIZE = 32768;
 
     /*
@@ -244,6 +244,7 @@ public class DTLSOverDatagram {
     public void receiveAppData(SSLEngine engine,
                                DatagramSocket socket) throws Exception {
 
+        Stats stats = new Stats();
         int loops = MAX_APP_READ_LOOPS;
         while (true) {
             if (--loops < 0) {
@@ -257,11 +258,13 @@ public class DTLSOverDatagram {
             ByteBuffer recBuffer = ByteBuffer.allocate(packet.getLength());
             SSLEngineResult rs = engine.unwrap(netBuffer, recBuffer);
             recBuffer.flip();
+            stats.newRequest(recBuffer.array().length);
             if (recBuffer.remaining() != 0) {
                 System.out.println(new String(recBuffer.array(), StandardCharsets.UTF_8));
                 break;
             }
         }
+        stats.printReport();
     }
 
 

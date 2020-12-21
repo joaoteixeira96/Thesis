@@ -195,7 +195,6 @@ public class TIRMMRT {
             SSLEngine engine = dtls.createSSLEngine(false);
             InetSocketAddress isa = dtls.handshake(engine, socket, null, "Server");
             String filePath = dtls.receiveAppData(engine, socket);
-            System.out.println("DTLS connection " + socket.getInetAddress() + ":" + socket.getPort());
             byte[] data = torRequest(filePath);
             dtls.deliverAppData(engine, socket, ByteBuffer.wrap(data), isa);
 

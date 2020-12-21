@@ -376,10 +376,12 @@ public class DTLSOverDatagram {
         } else {
             throw new Exception("Can't reach here, result is " + rs);
         }
+        // SSLEngineResult.Status.OK:
         if (appNet.hasRemaining()) {
-            int datasize = getContentLength(source.array());
+            byte[] ba = new byte[appNet.remaining()];
+            appNet.get(ba);
             DatagramPacket packet =
-                    new DatagramPacket(appNet.array(), datasize, socketAddr);
+                    new DatagramPacket(ba, ba.length, socketAddr);
             packets.add(packet);
         }
 
