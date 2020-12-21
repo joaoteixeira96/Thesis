@@ -116,7 +116,6 @@ public class Client {
             byte[] receive = new byte[BUF_SIZE];
             DatagramPacket receivedPacket = new DatagramPacket(receive, receive.length);
             try {
-                clientSocket.setSoTimeout(2000);
                 while (true) {
                     clientSocket.receive(receivedPacket);
                     String receivedData = new String(receivedPacket.getData());

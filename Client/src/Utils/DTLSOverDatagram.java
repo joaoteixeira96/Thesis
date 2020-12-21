@@ -245,12 +245,7 @@ public class DTLSOverDatagram {
                                DatagramSocket socket) throws Exception {
 
         Stats stats = new Stats();
-        int loops = MAX_APP_READ_LOOPS;
         while (true) {
-            if (--loops < 0) {
-                throw new RuntimeException(
-                        "Too much loops to receive application data");
-            }
             byte[] buf = new byte[socket.getReceiveBufferSize()];
             DatagramPacket packet = new DatagramPacket(buf, buf.length);
             socket.receive(packet);
@@ -258,13 +253,17 @@ public class DTLSOverDatagram {
             ByteBuffer recBuffer = ByteBuffer.allocate(packet.getLength());
             SSLEngineResult rs = engine.unwrap(netBuffer, recBuffer);
             recBuffer.flip();
-            stats.newRequest(recBuffer.array().length);
-            if (recBuffer.remaining() != 0) {
-                System.out.println(new String(recBuffer.array(), StandardCharsets.UTF_8));
+            if (new String(recBuffer.array()).contains("terminate_packet_receive")) {
                 break;
             }
+            stats.newRequest(recBuffer.array().length);
+            System.out.println(new String(recBuffer.array(), StandardCharsets.UTF_8));
         }
         stats.printReport();
+    }
+
+    private static boolean isEngineClosed(SSLEngine engine) {
+        return (engine.isOutboundDone() || engine.isInboundDone());
     }
 
 

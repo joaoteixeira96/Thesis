@@ -41,6 +41,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -355,35 +356,33 @@ public class DTLSOverDatagram {
     public List<DatagramPacket> produceApplicationPackets(
             SSLEngine engine, ByteBuffer source,
             SocketAddress socketAddr) throws Exception {
-
         List<DatagramPacket> packets = new ArrayList<>();
-        ByteBuffer appNet = ByteBuffer.allocate(32768);
-        SSLEngineResult r = engine.wrap(source, appNet);
-        appNet.flip();
+        int bytesSent = 0;
+        while (bytesSent <= source.array().length) {
+            byte[] sendData = Arrays.copyOfRange(source.array(), bytesSent, bytesSent + 1024);
 
-        SSLEngineResult.Status rs = r.getStatus();
-        if (rs == SSLEngineResult.Status.BUFFER_OVERFLOW) {
-            // the client maximum fragment size config does not work?
-            throw new Exception("Buffer overflow: " +
-                    "incorrect server.key maximum fragment size");
-        } else if (rs == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
-            // unlikely
-            throw new Exception("Buffer underflow during wraping");
-        } else if (rs == SSLEngineResult.Status.CLOSED) {
-            throw new Exception("SSLEngine has closed");
-        } else if (rs == SSLEngineResult.Status.OK) {
-            // OK
-        } else {
-            throw new Exception("Can't reach here, result is " + rs);
-        }
-        // SSLEngineResult.Status.OK:
-        if (appNet.hasRemaining()) {
+            ByteBuffer appNet = ByteBuffer.allocateDirect(engine.getSession().getPacketBufferSize());
+            SSLEngineResult r = engine.wrap(ByteBuffer.wrap(sendData), appNet);
+            appNet.flip();
+
             byte[] ba = new byte[appNet.remaining()];
             appNet.get(ba);
             DatagramPacket packet =
                     new DatagramPacket(ba, ba.length, socketAddr);
             packets.add(packet);
+
+            bytesSent += 1024;
         }
+        byte[] endTransmission = "terminate_packet_receive".getBytes();
+        ByteBuffer appNet = ByteBuffer.allocateDirect(engine.getSession().getPacketBufferSize());
+        SSLEngineResult r = engine.wrap(ByteBuffer.wrap(endTransmission), appNet);
+        appNet.flip();
+
+        byte[] ba = new byte[appNet.remaining()];
+        appNet.get(ba);
+        DatagramPacket packet =
+                new DatagramPacket(ba, ba.length, socketAddr);
+        packets.add(packet);
 
         return packets;
     }
@@ -439,20 +438,6 @@ public class DTLSOverDatagram {
         sslCtx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         return sslCtx;
-    }
-
-    private static int getContentLength(byte[] data) {
-        String s = new String(data);
-        try {
-            String[] strArr = s.split("Content-Length: ");
-            if (strArr.length > 1) {
-                strArr = strArr[1].split(" ");
-                return Integer.parseInt(strArr[0]);
-            }
-        } catch (Exception e) {
-            return 0;
-        }
-        return 0;
     }
 
     static void log(String side, String message) {
