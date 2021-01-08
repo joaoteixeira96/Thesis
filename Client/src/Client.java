@@ -21,7 +21,7 @@ public class Client {
 
     public static void main(String[] argv) throws Exception {
         //TIRMMRT certificate for server side authentication
-        System.setProperty("javax.net.ssl.trustStore", "./keystore/servers");
+        System.setProperty("javax.net.ssl.trustStore", "./keystore/tirmmrts");
         System.setProperty("javax.net.ssl.trustStoreType", "JKS");
         System.setProperty("javax.net.ssl.trustStorePassword", "password");
 
@@ -156,18 +156,5 @@ public class Client {
         return engine;
     }
 
-    private static int getContentLength(byte[] data) {
-        String s = new String(data);
-        try {
-            String[] strArr = s.split("Content-Length: ");
-            if (strArr.length > 1) {
-                strArr = strArr[1].split(" ");
-                return Integer.parseInt(strArr[0]);
-            }
-        } catch (Exception e) {
-            return 0;
-        }
-        return 0;
-    }
 }
 

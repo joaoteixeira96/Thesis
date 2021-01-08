@@ -3,8 +3,6 @@ package com.joaoteixeira;
 import Utils.DTLSOverDatagram;
 import Utils.Http;
 import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.protocol.HttpClientContext;
@@ -21,10 +19,7 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 
 import javax.net.ServerSocketFactory;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.*;
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -37,14 +32,14 @@ import java.util.concurrent.Executors;
 public class TIRMMRT {
 
     public static final String PASSWORD = "password";
-    public static final String KEYSTORE_KEY = "./keystore/server.key";
+    public static final String KEYSTORE_KEY = "./keystore/tirmmrt.key";
     public static final int BUF_SIZE = 1024;
 
     public static String local_host = "127.0.0.1";
     public static int local_port_unsecure = 1234;
     public static int local_port_secure = 2000;
 
-    public static String remote_host = "localhost"; //172.28.0.6 or 127.0.0.1
+    public static String remote_host = ""; //172.28.0.6 or 127.0.0.1
     public static int remote_port = 1238;
 
     public static String tor_host = "127.0.0.1";
@@ -61,7 +56,7 @@ public class TIRMMRT {
 
 
     public static void main(String[] args) throws FileNotFoundException {
-        System.setProperty("javax.net.ssl.trustStore", "./keystore/servers");
+        System.setProperty("javax.net.ssl.trustStore", "./keystore/tirmmrts");
         System.setProperty("javax.net.ssl.trustStorePassword", PASSWORD);
 
         readConfigurationFiles();
@@ -82,7 +77,7 @@ public class TIRMMRT {
                 System.err.println("Cannot open the port on TCP");
                 ioe.printStackTrace();
             } finally {
-                System.out.println("Closing TCP server.key");
+                System.out.println("Closing TCP server");
                 if (executor != null) {
                     executor.shutdown();
                 }
@@ -172,7 +167,6 @@ public class TIRMMRT {
         byte[] buf = new byte[socket.getReceiveBufferSize()];
         DatagramPacket receivePacket = new DatagramPacket(buf, buf.length);
         socket.receive(receivePacket);
-        System.out.println("UDP connection " + socket.getInetAddress() + ":" + socket.getPort());
         String filePath = new String(buf, StandardCharsets.UTF_8);
         System.out.println("File request path: " + filePath + " from " + receivePacket.getAddress() + ":" + receivePacket.getPort());
         byte[] data = bypass(filePath);
@@ -260,28 +254,25 @@ public class TIRMMRT {
     }
 
     private static byte[] bypassConnection(String path) throws Exception {
-        KeyStore keyStore = KeyStore.getInstance("JKS");
-        keyStore.load(new FileInputStream("./keystore/server.key"), PASSWORD.toCharArray());
-
-        SSLContext sslContext = SSLContexts.custom()
-                .loadKeyMaterial(keyStore, PASSWORD.toCharArray())
-                .build();
-
-        HttpClient httpClient = HttpClients.custom().setSSLContext(sslContext).build();
-        HttpResponse response = httpClient.execute(new HttpGet("https://localhost:" + stunnel_port + path.trim()));
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        Arrays.stream(response.getAllHeaders()).forEach(header -> {
-            try {
-                baos.write((header + "\r\n").getBytes());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-        baos.write("\r\n".getBytes()); //Separate line between header and body
-        baos.write(response.getEntity().getContent().readAllBytes());
-        byte[] out = baos.toByteArray();
-        System.out.println(new String(out));
-        return out;
+        SSLSocketFactory factory =
+                (SSLSocketFactory) SSLSocketFactory.getDefault();
+        SSLSocket socket =
+                (SSLSocket) factory.createSocket(bypassAddress.split(":")[0], Integer.parseInt(stunnel_port));
+        socket.startHandshake();
+        OutputStream out = socket.getOutputStream();
+        InputStream in = socket.getInputStream();
+
+        out.write(String.format("GET %s HTTP/1.1", path.trim()).getBytes());
+
+        int n = 0;
+        byte[] buffer = new byte[BUF_SIZE];
+        while ((n = in.read(buffer, 0, buffer.length)) != -1) {
+            System.out.write(buffer, 0, n);
+            baos.write(buffer, 0, n);
+
+        }
+        return baos.toByteArray();
     }
 
     private static ServerSocketFactory getServerSocketFactory() {
