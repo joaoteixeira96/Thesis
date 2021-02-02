@@ -239,6 +239,7 @@ public class DTLSOverDatagram {
         appData.flip();
         for (DatagramPacket p : packets) {
             socket.send(p);
+            Thread.sleep(1);
         }
     }
 
@@ -359,23 +360,19 @@ public class DTLSOverDatagram {
         List<DatagramPacket> packets = new ArrayList<>();
         int bytesSent = 0;
         while (bytesSent <= source.array().length) {
-            byte[] sendData = Arrays.copyOfRange(source.array(), bytesSent, bytesSent + 1024);
-
-            ByteBuffer appNet = ByteBuffer.allocateDirect(engine.getSession().getPacketBufferSize());
-            SSLEngineResult r = engine.wrap(ByteBuffer.wrap(sendData), appNet);
-            appNet.flip();
-
-            byte[] ba = new byte[appNet.remaining()];
-            appNet.get(ba);
-            DatagramPacket packet =
-                    new DatagramPacket(ba, ba.length, socketAddr);
-            packets.add(packet);
-
-            bytesSent += 1024;
+            byte[] sendData = Arrays.copyOfRange(source.array(), bytesSent, bytesSent + BUFFER_SIZE);
+            createPacket(engine, socketAddr, packets, sendData);
+            bytesSent += BUFFER_SIZE;
         }
         byte[] endTransmission = "terminate_packet_receive".getBytes();
+        createPacket(engine, socketAddr, packets, endTransmission);
+
+        return packets;
+    }
+
+    private void createPacket(SSLEngine engine, SocketAddress socketAddr, List<DatagramPacket> packets, byte[] sendData) throws SSLException {
         ByteBuffer appNet = ByteBuffer.allocateDirect(engine.getSession().getPacketBufferSize());
-        SSLEngineResult r = engine.wrap(ByteBuffer.wrap(endTransmission), appNet);
+        SSLEngineResult r = engine.wrap(ByteBuffer.wrap(sendData), appNet);
         appNet.flip();
 
         byte[] ba = new byte[appNet.remaining()];
@@ -383,8 +380,6 @@ public class DTLSOverDatagram {
         DatagramPacket packet =
                 new DatagramPacket(ba, ba.length, socketAddr);
         packets.add(packet);
-
-        return packets;
     }
 
     // run delegated tasks
