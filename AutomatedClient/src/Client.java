@@ -10,59 +10,94 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.util.Properties;
-import java.util.Scanner;
+import java.util.*;
 
 public class Client {
+    public static final String SPACE = " ";
+    private static int COMMAND_MAX_TIMER = 25000;
+    private static int COMMAND_MIN_TIMER = 15000;
     public static int remote_port_secure = 2000;
     public static int remote_port_unsecure = 1234;
     public static String remote_host = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
     public static final int BUF_SIZE = 1024;
 
-    public static void main(String[] argv) throws Exception {
+    public static final List<String> files =
+            List.of("/Files/small", "/Files/large", "/Files/earth.jpg", "/Files/book.pdf");
+    public static final List<String> protocols =
+            List.of("tcp", "tls", "udp", "dtls");
+
+    public static String command = "";
+
+    public static void main(String[] argv) {
         //TIRMMRT certificate for server side authentication
         System.setProperty("javax.net.ssl.trustStore", "./keystore/tirmmrts");
         System.setProperty("javax.net.ssl.trustStoreType", "JKS");
         System.setProperty("javax.net.ssl.trustStorePassword", "password");
 
         readConfigurationFiles();
+        nextCommandTriggeredTimer();
 
-        while (true) {
-            Scanner inFromUser = new Scanner(System.in);
-            String path = null;
-            String protocol = null;
-            try {
-                String[] input = inFromUser.nextLine().split(" ");
-                path = input[0];
-                protocol = input[1];
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.err.println("Usage: filePath protocol(tcp,udp,tls,dtls)");
-                System.exit(1);
-            }
-            switch (protocol.toLowerCase()) {
-                case "tcp":
-                    Socket tcp_socket = new Socket(remote_host, remote_port_unsecure);
-                    do_TCP_TLS(tcp_socket, path);
-                    tcp_socket.close();
-                    break;
-                case "tls":
-                    Socket tls_socket = getSecureSocket(remote_host, remote_port_secure);
-                    do_TCP_TLS(tls_socket, path);
-                    tls_socket.close();
-                    break;
-                case "udp":
-                    DatagramSocket udp_socket = new DatagramSocket();
-                    doUDP(path.getBytes(), udp_socket, remote_host, remote_port_unsecure);
-                    udp_socket.close();
-                    break;
-                case "dtls":
-                    DatagramSocket dtls_socket = new DatagramSocket();
-                    doDTLS(dtls_socket, path.getBytes(), remote_host, remote_port_secure);
-                    dtls_socket.close();
-                    break;
-            }
+    }
+
+    private static void executeCommand() throws Exception {
+        String path = null;
+        String protocol = null;
+        try {
+            String[] input = command.split(SPACE);
+            path = input[0];
+            protocol = input[1];
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Usage: filePath protocol(tcp,udp,tls,dtls)");
+            System.exit(1);
         }
+        switch (protocol.toLowerCase()) {
+            case "tcp":
+                Socket tcp_socket = new Socket(remote_host, remote_port_unsecure);
+                do_TCP_TLS(tcp_socket, path);
+                tcp_socket.close();
+                break;
+            case "tls":
+                Socket tls_socket = getSecureSocket(remote_host, remote_port_secure);
+                do_TCP_TLS(tls_socket, path);
+                tls_socket.close();
+                break;
+            case "udp":
+                DatagramSocket udp_socket = new DatagramSocket();
+                doUDP(path.getBytes(), udp_socket, remote_host, remote_port_unsecure);
+                udp_socket.close();
+                break;
+            case "dtls":
+                DatagramSocket dtls_socket = new DatagramSocket();
+                doDTLS(dtls_socket, path.getBytes(), remote_host, remote_port_secure);
+                dtls_socket.close();
+                break;
+        }
+
+    }
+
+    private static void nextCommand() {
+        Random rand = new Random();
+        String pickRandomFile = files.get(rand.nextInt(files.size()));
+        String pickRandomProtocol = protocols.get(rand.nextInt(protocols.size()));
+        command = pickRandomFile + SPACE + pickRandomProtocol;
+        System.err.println("Selected command is: " + command);
+    }
+
+    private static void nextCommandTriggeredTimer() {
+        Timer timer = new Timer();
+        int command_timer = (new Random()).nextInt(COMMAND_MAX_TIMER - COMMAND_MIN_TIMER) + COMMAND_MIN_TIMER;
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                nextCommand();
+                try {
+                    executeCommand();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }, 0, command_timer);
     }
 
     private static void readConfigurationFiles() {
@@ -75,6 +110,9 @@ public class Client {
             remote_host = prop.getProperty("remote_host");
             remote_port_unsecure = Integer.parseInt(prop.getProperty("remote_port_unsecure"));
             remote_port_secure = Integer.parseInt(prop.getProperty("remote_port_secure"));
+            COMMAND_MAX_TIMER = Integer.parseInt(prop.getProperty("COMMAND_MAX_TIMER"));
+            COMMAND_MIN_TIMER = Integer.parseInt(prop.getProperty("COMMAND_MIN_TIMER"));
+
 
         } catch (IOException e) {
             e.printStackTrace();
