@@ -1,6 +1,6 @@
 <component name="ArtifactManager">
   <artifact type="jar" name="TIR_MMRT:jar">
-    <output-path>$USER_HOME$/Desktop/TIRMMRT</output-path>
+    <output-path>$USER_HOME$/Desktop/Thesis_Services</output-path>
     <root id="archive" name="TIR_MMRT.jar">
       <element id="directory" name="META-INF">
         <element id="file-copy" path="$PROJECT_DIR$/META-INF/MANIFEST.MF" />

@@ -2,7 +2,7 @@
   <artifact type="jar" name="AutomatedClient:jar">
     <output-path>$USER_HOME$/Desktop/Thesis_Services</output-path>
     <root id="archive" name="Client.jar">
-      <element id="module-output" name="Client" />
+      <element id="module-output" name="AutomatedClient" />
     </root>
   </artifact>
 </component>

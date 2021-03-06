@@ -1,47 +1,17 @@
 version: "3.8"
 services:
-  tirmmrt:
-    ports:
-      - "1234"
+  stunnel:
     build:
+      network: bridge
+      context: .
+      dockerfile: ./Stunnel/Dockerfile 
+  server:
+    build:
+      network: bridge
       context: .
       dockerfile: ./TIR_MMRT/Dockerfile
-    networks:
-      thesis:
-        ipv4_address: 172.28.0.5
-  tcpclient:
-    ports:
-      - "1237"
-    build:
-      context: .
-      dockerfile: ./TCPClient/Dockerfile
-    command: sh -c "java TCPClient"
-    networks:
-      thesis:
-        ipv4_address: 172.28.0.4
-  udpclient:
-    ports:
-      - "1236"
-    build:
-      context: .
-      dockerfile: ./UDPClient/Dockerfile
-    command: sh -c "java UDPClient"
-    networks:
-      thesis:
-        ipv4_address: 172.28.0.3
-  httpserver:
-    ports:
-      - "1238"
-    build:
-      context: .
-      dockerfile: ./HttpServer/Dockerfile
-    networks:
-      thesis:
-        ipv4_address: 172.28.0.6
-              
+    depends_on:
+      - "stunnel"
 networks:
-  thesis:
-    ipam:
-      driver: default
-      config:
-          - subnet: 172.28.0.0/16
+  backend:
+    driver: "bridge"

@@ -50,9 +50,12 @@ public class TIRMMRT {
 
     public static List<String> tirmmrt_network = null;
 
-    public static String strategy;
-
     public static String stunnel_port = "1239";
+
+    public static int test_port = 9999;
+    public static int test_stunnel_port = 9998;
+
+    public static String tor_service_active = "";
 
 
     public static void main(String[] args) throws FileNotFoundException {
@@ -138,28 +141,141 @@ public class TIRMMRT {
             }
         }).start();
 
+        //Special thread for tests (latency,bandwidth,throughtput)
+        new Thread(() -> {
+            try (ServerSocket serverSocket = new ServerSocket(test_port)) {
+
+                System.out.println("Test proxy is listening on port " + test_port);
+
+                while (true) {
+                    measureTest(serverSocket);
+                }
+
+            } catch (IOException ex) {
+                System.out.println("Server exception: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+        }).start();
+
     }
 
-    private static void doTCP_TLS(Socket socket) {
-        try {
+    private static void measureTest(ServerSocket serverSocket) throws IOException {
+        Socket server = serverSocket.accept();
+        InputStream in = server.getInputStream();
+
+        byte[] buffer = new byte[server.getReceiveBufferSize()];
+        String my_address = local_host + ":" + local_port_unsecure;
+
+        if (bypassAddress.equals(my_address)) {
+
+            InetSocketAddress socksaddr = new InetSocketAddress(tor_host, tor_port);
+            HttpClientContext context = HttpClientContext.create();
+            context.setAttribute("socks.address", socksaddr);
+
+            Socket socket = MyConnectionSocketFactory.getSocketFactory().createSocket(context);
+            socket.connect(new InetSocketAddress(remote_host, 5001));
             OutputStream out = socket.getOutputStream();
-            InputStream in = socket.getInputStream();
-            byte[] buffer = new byte[socket.getReceiveBufferSize()];
-            in.read(buffer);
-            String filePath = Http.parseHttpReply(new String(buffer))[1];
-            System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
-            byte[] data = bypass(filePath);
-            out.write(data, 0, data.length);
+
+            while ((in.read(buffer, 0, buffer.length)) != -1) {
+                System.err.println("Received from iperf: " + new String(buffer));
+                out.write(buffer);
+            }
+            out.flush();
             socket.close();
-        } catch (Exception e) {
-            e.printStackTrace();
+        } else {
+            System.err.println("TIR-MMRT test connection :" + my_address + " ---> " + bypassAddress);
+
+            SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+            SSLSocket socket = (SSLSocket) factory.createSocket(bypassAddress.split(":")[0], test_stunnel_port);
+            socket.startHandshake();
+            OutputStream out = socket.getOutputStream();
+
+            while ((in.read(buffer, 0, buffer.length)) != -1) {
+                System.err.println("Received from iperf: " + new String(buffer));
+                out.write(buffer);
+            }
+            out.flush();
+            socket.close();
         }
+    }
+
+
+    //TIR-MMRT directly requests HttpServer without going throw Tor
+    private static byte[] httpRequest(String path) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Socket socket = new Socket(remote_host, remote_port);
+        OutputStream out = socket.getOutputStream();
+        InputStream in = socket.getInputStream();
+
+        String request = String.format(
+                "GET %s HTTP/1.1\r\n" +
+                        "Host: %s\r\n" +
+                        "User-Agent: X-TIRMMRT\r\n\r\n", path, remote_port);
+
+        out.write(request.getBytes());
+
+        System.out.println("\nSent Request:\n" + request);
+        System.out.println("Got Reply:\n");
+        System.out.println("\nReply Header:\n");
+
+        baos.write(("\nSent Request:\n\n" + request).getBytes());
+        baos.write(("Got Reply:\n").getBytes());
+        baos.write(("\nReply Header:\n").getBytes());
+
+        String answerLine = Http.readLine(in);  // first line is always present
+        System.out.println(answerLine);
+        baos.write((answerLine + "\r\n").getBytes());
+        String[] reply = Http.parseHttpReply(answerLine);
+
+        answerLine = Http.readLine(in);
+        while (!answerLine.equals("")) {
+            System.out.println(answerLine);
+            baos.write((answerLine + "\r\n").getBytes());
+            answerLine = Http.readLine(in);
+        }
+
+        if (reply[1].equals("200")) {
+            System.out.println("\r\nReply Body:\n");
+            baos.write(("\r\nReply Body:\n").getBytes());
+            int n;
+            byte[] buffer = new byte[BUF_SIZE];
+
+            while ((n = in.read(buffer)) >= 0) {
+                System.out.write(buffer, 0, n);
+                baos.write(buffer, 0, n);
+            }
+        } else {
+            System.out.println("Ooops, received status:" + reply[1]);
+            baos.write(("Ooops, received status:" + reply[1] + "\n").getBytes());
+        }
+        baos.write("\n".getBytes());
+        socket.close();
+        baos.close();
+        return baos.toByteArray();
     }
 
     private static ServerSocket getSecureSocketTLS(int port) throws IOException {
         ServerSocketFactory ssf = getServerSocketFactory();
         ServerSocket ss = ssf.createServerSocket(port);
         return ss;
+    }
+
+    private static void doTCP_TLS(Socket socket) {
+        try {
+            OutputStream out = socket.getOutputStream();
+            InputStream in = socket.getInputStream();
+            byte[] buffer = new byte[BUF_SIZE];
+            in.read(buffer);
+            String filePath = Http.parseHttpReply(new String(buffer))[1];
+            System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
+            byte[] data = bypass(filePath);
+            out.write(data, 0, data.length);
+            out.flush();
+
+            socket.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static void doUDP(DatagramSocket socket) throws Exception {
@@ -215,8 +331,10 @@ public class TIRMMRT {
             tor_host = prop.getProperty("tor_host");
             tor_port = Integer.parseInt(prop.getProperty("tor_port"));
             stunnel_port = prop.getProperty("stunnel_port");
-            strategy = prop.getProperty("strategy");
             bypass_timer = Integer.parseInt(prop.getProperty("bypass_timer"));
+            test_port = Integer.parseInt(prop.getProperty("test_port"));
+            test_stunnel_port = Integer.parseInt(prop.getProperty("test_stunnel_port"));
+            tor_service_active = prop.getProperty("tor_service_active");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -246,7 +364,11 @@ public class TIRMMRT {
     private static byte[] bypass(String path) throws Exception {
         String my_address = local_host + ":" + local_port_unsecure;
         if (bypassAddress.equals(my_address)) {
-            return torRequest(path);
+            if (tor_service_active.equals("yes")) {
+                return torRequest(path);
+            } else {
+                return httpRequest(path);
+            }
         } else {
             System.err.println("TIR-MMRT connection :" + my_address + " ---> " + bypassAddress);
             return bypassConnection(path);
@@ -301,11 +423,12 @@ public class TIRMMRT {
         return null;
     }
 
+
     private static byte[] torRequest(String path) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Registry<ConnectionSocketFactory> reg = RegistryBuilder.<ConnectionSocketFactory>create()
                 .register("http", PlainConnectionSocketFactory.INSTANCE)
-                .register("https", new MyConnectionSocketFactory(SSLContexts.createSystemDefault())) //Only used to very if Tor is working correctly
+                .register("https", new MyConnectionSocketFactory(SSLContexts.createSystemDefault()))
                 .build();
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(reg);
         try (CloseableHttpClient httpclient = HttpClients.custom()
@@ -315,7 +438,7 @@ public class TIRMMRT {
             HttpClientContext context = HttpClientContext.create();
             context.setAttribute("socks.address", socksaddr);
 
-            //HttpHost target = new HttpHost("check.torproject.org", 80, "http");
+            //HttpHost target = new HttpHost("check.torproject.org", 80, "http"); //check if Tor service working correctly
             HttpHost target = new HttpHost(remote_host, remote_port, "http");
             HttpGet request = new HttpGet(path.trim());
             System.err.println("Requesting Tor path:" + path);
@@ -344,7 +467,7 @@ public class TIRMMRT {
         return baos.toByteArray();
     }
 
-    static class MyConnectionSocketFactory extends SSLConnectionSocketFactory {
+    public static class MyConnectionSocketFactory extends SSLConnectionSocketFactory {
 
         public MyConnectionSocketFactory(final SSLContext sslContext) {
             super(sslContext);

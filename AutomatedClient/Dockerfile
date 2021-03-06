@@ -47,7 +47,8 @@ RUN set -eux; \
 ENV JAVA_HOME=/opt/java/openjdk \
     PATH="/opt/java/openjdk/bin:$PATH"
 
-WORKDIR /usr/src/tcpclient
-COPY /TCPClient/src /usr/src/tcpclient/
-COPY /TCPClient/ .
-RUN javac ./AutomatedClient.java
+WORKDIR /usr/src/client
+COPY /AutomatedClient/out/production/Client.jar /usr/src/client
+COPY /AutomatedClient/configuration/ /usr/src/client/configuration
+COPY /AutomatedClient/keystore/ /usr/src/client/keystore
+CMD ["java","-jar","/usr/src/client/Client.jar"]
