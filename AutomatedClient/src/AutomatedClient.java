@@ -14,8 +14,8 @@ import java.util.*;
 
 public class AutomatedClient {
     public static final String SPACE = " ";
-    private static int COMMAND_MAX_TIMER = 25000;
-    private static int COMMAND_MIN_TIMER = 15000;
+    private static int COMMAND_MAX_TIMER = 35000;
+    private static int COMMAND_MIN_TIMER = 25000;
     public static int remote_port_secure = 2000;
     public static int remote_port_unsecure = 1234;
     public static String remote_host = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
