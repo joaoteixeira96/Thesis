@@ -55,7 +55,7 @@ public class TIRMMRT {
     public static int test_port = 9999;
     public static int test_stunnel_port = 9998;
 
-    public static String tor_service_active = "";
+    public static int number_of_tirmmrt = 0;
 
 
     public static void main(String[] args) throws FileNotFoundException {
@@ -164,7 +164,7 @@ public class TIRMMRT {
         InputStream in = server.getInputStream();
 
         byte[] buffer = new byte[server.getReceiveBufferSize()];
-        String my_address = local_host + ":" + local_port_unsecure;
+        String my_address = local_host;
 
         if (bypassAddress.equals(my_address)) {
 
@@ -334,15 +334,18 @@ public class TIRMMRT {
             bypass_timer = Integer.parseInt(prop.getProperty("bypass_timer"));
             test_port = Integer.parseInt(prop.getProperty("test_port"));
             test_stunnel_port = Integer.parseInt(prop.getProperty("test_stunnel_port"));
-            tor_service_active = prop.getProperty("tor_service_active");
+            number_of_tirmmrt = Integer.parseInt(prop.getProperty("number_of_tirmmrt"));
 
         } catch (IOException e) {
             e.printStackTrace();
         }
         File file = new File("./configuration/TIR-MMRT_network");
         Scanner sc = new Scanner(file);
-        while (sc.hasNextLine())
+        int tirmmrts = 0;
+        while (sc.hasNextLine() && tirmmrts < number_of_tirmmrt) {
             tirmmrt_network.add(sc.nextLine());
+            tirmmrts++;
+        }
         sc.close();
     }
 
@@ -362,13 +365,9 @@ public class TIRMMRT {
     }
 
     private static byte[] bypass(String path) throws Exception {
-        String my_address = local_host + ":" + local_port_unsecure;
+        String my_address = local_host;
         if (bypassAddress.equals(my_address)) {
-            if (tor_service_active.equals("yes")) {
-                return torRequest(path);
-            } else {
-                return httpRequest(path);
-            }
+            return torRequest(path);
         } else {
             System.err.println("TIR-MMRT connection :" + my_address + " ---> " + bypassAddress);
             return bypassConnection(path);
