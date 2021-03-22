@@ -53,6 +53,7 @@ public class TIRMMRT {
 
     public static String stunnel_port;
 
+    public static int tor_buffer_size;
     public static int test_port;
     public static int test_stunnel_port;
 
@@ -164,7 +165,7 @@ public class TIRMMRT {
         Socket server = serverSocket.accept();
         InputStream in = server.getInputStream();
 
-        byte[] buffer = new byte[server.getReceiveBufferSize()];
+        byte[] buffer = new byte[tor_buffer_size];
         String my_address = local_host;
 
         if (bypassAddress.equals(my_address)) {
@@ -178,7 +179,7 @@ public class TIRMMRT {
             OutputStream out = socket.getOutputStream();
 
             while ((in.read(buffer, 0, buffer.length)) != -1) {
-                System.err.println("Received from iperf: " + new String(buffer));
+                System.err.println("Sending to iperf: " + new String(buffer));
                 out.write(buffer, 0, buffer.length);
             }
             out.flush();
@@ -349,6 +350,7 @@ public class TIRMMRT {
             test_port = Integer.parseInt(prop.getProperty("test_port"));
             test_stunnel_port = Integer.parseInt(prop.getProperty("test_stunnel_port"));
             number_of_tirmmrt = Integer.parseInt(prop.getProperty("number_of_tirmmrt"));
+            tor_buffer_size = Integer.parseInt(prop.getProperty("tor_buffer_size"));
 
         } catch (IOException e) {
             e.printStackTrace();
