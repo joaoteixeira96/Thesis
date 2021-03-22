@@ -1,30 +1,64 @@
+import Clients.HttpsClient;
 import Utils.Http;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class HttpServer {
     public static final int PORT = 1238;
     static final int MAX_BYTES = 102400000;
+    public static final int TEST_PORT = 2238;
 
     public static void main(String[] args) throws IOException {
-        ServerSocket ss = new ServerSocket(PORT);
-        while (true) {
-            try {
+
+        //TCP
+        new Thread(() -> {
+            ExecutorService executor = null;
+            try (ServerSocket ss = new ServerSocket(PORT)) {
+                executor = Executors.newFixedThreadPool(5);
                 System.out.println("Http server ready at port " + PORT + " waiting for request ...");
-                Socket clientSock = ss.accept();
-                processClientRequest(clientSock);
-                clientSock.close();
-            } catch (Exception e) {
-                ss.close();
-                System.err.println("Http server is going down :(");
-                e.printStackTrace();
-                System.exit(-1);
+                while (true) {
+                    Socket clientSock = ss.accept();
+                    processClientRequest(clientSock);
+                    clientSock.close();
+                }
+            } catch (IOException ioe) {
+                System.err.println("Cannot open the port on TCP");
+                ioe.printStackTrace();
+            } finally {
+                System.out.println("Closing TCP server");
+                if (executor != null) {
+                    executor.shutdown();
+                }
             }
-        }
+        }).start();
+
+        new Thread(() -> {
+            ExecutorService executor = null;
+            try (ServerSocket ss = new ServerSocket(TEST_PORT)) {
+                executor = Executors.newFixedThreadPool(5);
+                System.out.println("Http server ready at port " + TEST_PORT + " waiting for request ...");
+                while (true) {
+                    Socket clientSock = ss.accept();
+                    HttpsClient.httpsRequest(clientSock);
+                    clientSock.close();
+                }
+            } catch (IOException ioe) {
+                System.err.println("Cannot open the port on TCP");
+                ioe.printStackTrace();
+            } finally {
+                System.out.println("Closing TCP server");
+                if (executor != null) {
+                    executor.shutdown();
+                }
+            }
+        }).start();
     }
+
 
     private static void processClientRequest(Socket socket) {
         try {
