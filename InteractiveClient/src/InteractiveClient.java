@@ -124,7 +124,7 @@ public class InteractiveClient {
                     if (receivedData.contains("terminate_packet_receive")) {
                         break;
                     } //server side sends terminate receive packet
-                    clientSocket.send(receivedPacket);
+                    //clientSocket.send(receivedPacket);
                     stats.newRequest(receivedPacket.getLength());
                     System.out.println(receivedData);
                 }

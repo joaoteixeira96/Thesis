@@ -34,28 +34,29 @@ public class TIRMMRT {
     public static final String PASSWORD = "password";
     public static final String KEYSTORE_KEY = "./keystore/tirmmrt.key";
     public static final int BUF_SIZE = 1024;
+    public static final int N_THREADS = 5;
 
-    public static String local_host = "127.0.0.1";
-    public static int local_port_unsecure = 1234;
-    public static int local_port_secure = 2000;
+    public static String local_host;
+    public static int local_port_unsecure;
+    public static int local_port_secure;
 
-    public static String remote_host = ""; //172.28.0.6 or 127.0.0.1
-    public static int remote_port = 1238;
+    public static String remote_host;
+    public static int remote_port;
 
-    public static String tor_host = "127.0.0.1";
-    public static int tor_port = 9050;
+    public static String tor_host;
+    public static int tor_port;
 
-    public static int bypass_timer = 0;
-    public static String bypassAddress = null;
+    public static int bypass_timer;
+    public static String bypassAddress;
 
-    public static List<String> tirmmrt_network = null;
+    public static List<String> tirmmrt_network;
 
-    public static String stunnel_port = "1239";
+    public static String stunnel_port;
 
-    public static int test_port = 9999;
-    public static int test_stunnel_port = 9998;
+    public static int test_port;
+    public static int test_stunnel_port;
 
-    public static int number_of_tirmmrt = 0;
+    public static int number_of_tirmmrt;
 
 
     public static void main(String[] args) throws FileNotFoundException {
@@ -69,7 +70,7 @@ public class TIRMMRT {
         new Thread(() -> {
             ExecutorService executor = null;
             try (ServerSocket server = new ServerSocket(local_port_unsecure)) {
-                executor = Executors.newFixedThreadPool(5);
+                executor = Executors.newFixedThreadPool(N_THREADS);
                 System.out.println("Listening on TCP port " + local_port_unsecure + ", waiting for file request!");
                 while (true) {
                     final Socket socket = server.accept();
@@ -91,7 +92,7 @@ public class TIRMMRT {
         new Thread(() -> {
             ExecutorService executor = null;
             try (ServerSocket server = getSecureSocketTLS(local_port_secure)) {
-                executor = Executors.newFixedThreadPool(5);
+                executor = Executors.newFixedThreadPool(N_THREADS);
                 System.out.println("Listening on TLS port " + local_port_secure + ", waiting for file request!");
                 while (true) {
                     final Socket socket = server.accept();
@@ -178,7 +179,7 @@ public class TIRMMRT {
 
             while ((in.read(buffer, 0, buffer.length)) != -1) {
                 System.err.println("Received from iperf: " + new String(buffer));
-                out.write(buffer);
+                out.write(buffer, 0, buffer.length);
             }
             out.flush();
             socket.close();
@@ -192,7 +193,7 @@ public class TIRMMRT {
 
             while ((in.read(buffer, 0, buffer.length)) != -1) {
                 System.err.println("Received from iperf: " + new String(buffer));
-                out.write(buffer);
+                out.write(buffer, 0, buffer.length);
             }
             out.flush();
             socket.close();
@@ -271,7 +272,6 @@ public class TIRMMRT {
             byte[] data = bypass(filePath);
             out.write(data, 0, data.length);
             out.flush();
-
             socket.close();
         } catch (Exception e) {
             e.printStackTrace();
@@ -286,27 +286,41 @@ public class TIRMMRT {
         String filePath = new String(buf, StandardCharsets.UTF_8);
         System.out.println("File request path: " + filePath + " from " + receivePacket.getAddress() + ":" + receivePacket.getPort());
         byte[] data = bypass(filePath);
+
         //send
-        int bytesSent = 0;
-        while (bytesSent <= data.length) {
-            byte[] sendData = Arrays.copyOfRange(data, bytesSent, bytesSent + BUF_SIZE); //prevent sending bytes overflow
-            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
-            socket.send(sendPacket);
-            socket.receive(sendPacket);
-            bytesSent += BUF_SIZE;
-        }
-        byte[] endTransmission = "terminate_packet_receive".getBytes();
-        socket.send(new DatagramPacket(endTransmission, endTransmission.length, receivePacket.getAddress(), receivePacket.getPort()));
+        ExecutorService executor;
+        executor = Executors.newFixedThreadPool(N_THREADS);
+        executor.execute(() -> {
+            try {
+                int bytesSent = 0;
+                while (bytesSent <= data.length) {
+                    byte[] sendData = Arrays.copyOfRange(data, bytesSent, bytesSent + BUF_SIZE); //prevent sending bytes overflow
+                    DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
+                    socket.send(sendPacket);
+                    bytesSent += BUF_SIZE;
+                    Thread.sleep(1); //For big files
+                }
+                byte[] endTransmission = "terminate_packet_receive".getBytes();
+                socket.send(new DatagramPacket(endTransmission, endTransmission.length, receivePacket.getAddress(), receivePacket.getPort()));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
+
 
     private static void doDTLS(DatagramSocket socket) {
         try {
+            //Handshake and receive
             DTLSOverDatagram dtls = new DTLSOverDatagram();
             SSLEngine engine = dtls.createSSLEngine(false);
             InetSocketAddress isa = dtls.handshake(engine, socket, null, "Server");
             String filePath = dtls.receiveAppData(engine, socket);
             byte[] data = bypass(filePath);
-            dtls.deliverAppData(engine, socket, ByteBuffer.wrap(data), isa);
+            //deliver up to nThread clients
+            ExecutorService executor = null;
+            executor = Executors.newFixedThreadPool(N_THREADS);
+            executor.execute(() -> dtls.deliverAppData(engine, socket, ByteBuffer.wrap(data), isa));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -364,13 +378,18 @@ public class TIRMMRT {
         }, 0, bypass_timer);
     }
 
-    private static byte[] bypass(String path) throws Exception {
-        String my_address = local_host;
-        if (bypassAddress.equals(my_address)) {
-            return torRequest(path);
-        } else {
-            System.err.println("TIR-MMRT connection :" + my_address + " ---> " + bypassAddress);
-            return bypassConnection(path);
+    private static byte[] bypass(String path) {
+        try {
+            String my_address = local_host;
+            if (bypassAddress.equals(my_address)) {
+                return torRequest(path);
+            } else {
+                System.err.println("TIR-MMRT connection :" + my_address + " ---> " + bypassAddress);
+                return bypassConnection(path);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
@@ -389,7 +408,7 @@ public class TIRMMRT {
         int n = 0;
         byte[] buffer = new byte[BUF_SIZE];
         while ((n = in.read(buffer, 0, buffer.length)) != -1) {
-            System.out.write(buffer, 0, n);
+            //System.out.write(buffer, 0, n);
             baos.write(buffer, 0, n);
 
         }
@@ -458,7 +477,7 @@ public class TIRMMRT {
                 byte[] buffer = new byte[BUF_SIZE];
                 while ((n = response.getEntity().getContent().read(buffer, 0, buffer.length)) >= 0) {
                     baos.write(buffer, 0, n);
-                    System.out.write(buffer, 0, n);
+                    //System.out.write(buffer, 0, n);
                 }
                 EntityUtils.consume(response.getEntity());
             }
@@ -479,5 +498,25 @@ public class TIRMMRT {
             return new Socket(proxy);
         }
 
+    }
+
+    public static class UDPResponse implements Runnable {
+        DatagramSocket socket = null;
+        DatagramPacket receivePacket = null;
+        byte[] buf = null;
+
+        public UDPResponse(DatagramSocket socket, DatagramPacket receivePacket, byte[] buf) {
+            this.socket = socket;
+            this.receivePacket = receivePacket;
+            this.buf = buf;
+        }
+
+        public void run() {
+            try {
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

@@ -14,6 +14,7 @@ import java.util.*;
 
 public class AutomatedClient {
     public static final String SPACE = " ";
+    public static final int TIMEOUT = 10000;
     private static int COMMAND_MAX_TIMER = 35000;
     private static int COMMAND_MIN_TIMER = 25000;
     public static int remote_port_secure = 2000;
@@ -22,9 +23,9 @@ public class AutomatedClient {
     public static final int BUF_SIZE = 1024;
 
     public static final List<String> files =
-            List.of("/Files/small", "/Files/large", "/Files/earth.jpg", "/Files/book.pdf");
+            List.of("/Files/large", "/Files/small", "/Files/earth.jpg"); // "/Files/large", "/Files/small", "/Files/book.pdf",
     public static final List<String> protocols =
-            List.of("tcp", "tls", "udp", "dtls");
+            List.of("udp", "dtls"); //"tcp", "tls","dtls"
 
     public static String command = "";
 
@@ -144,28 +145,30 @@ public class AutomatedClient {
         stats.printReport();
     }
 
-    private static void doUDP(byte[] path, DatagramSocket clientSocket, String host, int port) {
+    private static void doUDP(byte[] path, DatagramSocket socket, String host, int port) {
         try {
+            socket.setSoTimeout(TIMEOUT);
             InetAddress IPAddress = InetAddress.getByName(host);
             Stats stats = new Stats();
             DatagramPacket sendPacket = new DatagramPacket(path, path.length, IPAddress, port);
-            clientSocket.send(sendPacket);
+            socket.send(sendPacket);
             //receive
             byte[] receive = new byte[BUF_SIZE];
             DatagramPacket receivedPacket = new DatagramPacket(receive, receive.length);
             try {
                 while (true) {
-                    clientSocket.receive(receivedPacket);
+                    socket.receive(receivedPacket);
                     String receivedData = new String(receivedPacket.getData());
                     if (receivedData.contains("terminate_packet_receive")) {
                         break;
-                    } //server side sends terminate receive packet
-                    clientSocket.send(receivedPacket);
+                    }
                     stats.newRequest(receivedPacket.getLength());
                     System.out.println(receivedData);
                 }
             } catch (Exception e) {
+                e.printStackTrace();
             }
+            socket.close();
             stats.printReport();
         } catch (IOException e) {
             e.printStackTrace();
@@ -175,6 +178,7 @@ public class AutomatedClient {
 
     private static void doDTLS(DatagramSocket socket, byte[] filePath, String host, int port) {
         try {
+            socket.setSoTimeout(TIMEOUT);
             DTLSOverDatagram dtls = new DTLSOverDatagram();
             InetSocketAddress isa = new InetSocketAddress(host, port);
 
@@ -182,6 +186,7 @@ public class AutomatedClient {
 
             dtls.deliverAppData(engine, socket, ByteBuffer.wrap(filePath), isa);
             dtls.receiveAppData(engine, socket);
+            socket.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Unable to do DTLS");

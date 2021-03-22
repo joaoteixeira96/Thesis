@@ -231,15 +231,18 @@ public class DTLSOverDatagram {
 
     // deliver application data
     public void deliverAppData(SSLEngine engine, DatagramSocket socket,
-                               ByteBuffer appData, SocketAddress peerAddr) throws Exception {
-
-        // Note: have not consider the packet loses
-        List<DatagramPacket> packets =
-                produceApplicationPackets(engine, appData, peerAddr);
-        appData.flip();
-        for (DatagramPacket p : packets) {
-            socket.send(p);
-            Thread.sleep(1);
+                               ByteBuffer appData, SocketAddress peerAddr) {
+        try {
+            // Note: have not consider the packet loses
+            List<DatagramPacket> packets =
+                    produceApplicationPackets(engine, appData, peerAddr);
+            appData.flip();
+            for (DatagramPacket p : packets) {
+                socket.send(p);
+                Thread.sleep(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
