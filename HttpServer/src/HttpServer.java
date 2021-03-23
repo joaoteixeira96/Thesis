@@ -74,7 +74,7 @@ public class HttpServer {
                 line = Http.readLine(in);
             }
             System.out.println();
-            if (request[0].equalsIgnoreCase("GET") && !request[1].equals("")) {
+            if (request[0].equalsIgnoreCase("GET") || request[0].equalsIgnoreCase("HEAD") && !request[1].equals("")) {
                 sendFile(request[1], out);
             } else {
                 sendsNotSupportedPage(out);
