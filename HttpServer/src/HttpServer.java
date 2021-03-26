@@ -19,10 +19,11 @@ public class HttpServer {
         new Thread(() -> {
             ExecutorService executor = null;
             try (ServerSocket ss = new ServerSocket(PORT)) {
-                executor = Executors.newFixedThreadPool(5);
+                executor = Executors.newFixedThreadPool(8);
                 System.out.println("Http server ready at port " + PORT + " waiting for request ...");
                 while (true) {
                     Socket clientSock = ss.accept();
+                    System.err.println("New client ---->" + clientSock.getRemoteSocketAddress());
                     processClientRequest(clientSock);
                     clientSock.close();
                 }
@@ -44,6 +45,7 @@ public class HttpServer {
                 System.out.println("Http server ready at port " + TEST_PORT + " waiting for request ...");
                 while (true) {
                     Socket clientSock = ss.accept();
+                    System.err.println("New client ---->" + clientSock.getRemoteSocketAddress());
                     HttpsClient.httpsRequest(clientSock);
                     clientSock.close();
                 }
