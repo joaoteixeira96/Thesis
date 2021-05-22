@@ -12,6 +12,7 @@ public class HttpServer {
     public static final int PORT = 1238;
     static final int MAX_BYTES = 102400000;
     public static final int TEST_PORT = 2238;
+    public static final int ECHO_PORT = 3238;
 
     public static void main(String[] args) throws IOException {
 
@@ -19,7 +20,7 @@ public class HttpServer {
         new Thread(() -> {
             ExecutorService executor = null;
             try (ServerSocket ss = new ServerSocket(PORT)) {
-                executor = Executors.newFixedThreadPool(8);
+                executor = Executors.newFixedThreadPool(15);
                 System.out.println("Http server ready at port " + PORT + " waiting for request ...");
                 while (true) {
                     Socket clientSock = ss.accept();
@@ -47,6 +48,44 @@ public class HttpServer {
                     Socket clientSock = ss.accept();
                     System.err.println("New client ---->" + clientSock.getRemoteSocketAddress());
                     HttpsClient.httpsRequest(clientSock);
+                    clientSock.close();
+                }
+            } catch (IOException ioe) {
+                System.err.println("Cannot open the port on TCP");
+                ioe.printStackTrace();
+            } finally {
+                System.out.println("Closing TCP server");
+                if (executor != null) {
+                    executor.shutdown();
+                }
+            }
+        }).start();
+
+        //echo packets for correlation
+        new Thread(() -> {
+            ExecutorService executor = null;
+            try (ServerSocket ss = new ServerSocket(ECHO_PORT)) {
+                executor = Executors.newFixedThreadPool(5);
+                System.out.println("Http server ready at port " + ECHO_PORT + " waiting for request ...");
+                while (true) {
+                    Socket clientSock = ss.accept();
+                    System.err.println("New client ---->" + clientSock.getRemoteSocketAddress());
+                    // repeatedly wait for connections, and process
+
+                    // open up IO streams
+                    InputStream in = clientSock.getInputStream();
+                    OutputStream out = clientSock.getOutputStream();
+
+                    // waits for data and reads it in until connection dies
+                    // readLine() blocks until the server receives a new line from client
+                    int n;
+                    byte[] buffer = new byte[clientSock.getReceiveBufferSize()];
+                    while ((n = in.read(buffer, 0, buffer.length)) >= 0) {
+                        out.write(("OK" + "\r\n\r\n").getBytes());
+                    }
+                    // close IO streams, then socket
+                    System.err.println("Closing connection with client");
+                    in.close();
                     clientSock.close();
                 }
             } catch (IOException ioe) {

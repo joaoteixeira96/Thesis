@@ -2,7 +2,7 @@ package com.joaoteixeira;
 
 import Utils.DTLSOverDatagram;
 import Utils.Http;
-import com.msopentech.thali.java.toronionproxy.Utilities;
+import com.msopentech.thali.toronionproxy.Utilities;
 
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.*;
@@ -48,6 +48,8 @@ public class TIRMMRT {
     public static int test_stunnel_port_httping;
 
     public static int number_of_tirmmrt;
+
+    public static final boolean correlationTest = true;
 
 
     public static void main(String[] args) throws FileNotFoundException {
@@ -179,8 +181,9 @@ public class TIRMMRT {
         try {
             InputStream in = socket.getInputStream();
             OutputStream out = socket.getOutputStream();
+            out.flush();
 
-            byte[] buffer = new byte[tor_buffer_size];
+            byte[] buffer = new byte[BUF_SIZE];
             String my_address = local_host;
 
             if (bypassAddress.equals(my_address)) {
@@ -189,28 +192,33 @@ public class TIRMMRT {
                 InputStream inTor;
                 Socket socketTor;
 
-                while ((in.read(buffer, 0, buffer.length)) != -1) {
-                    System.err.println("Sending to iperf: " + new String(buffer));
-                    out.write(buffer, 0, buffer.length);
-                }
                 byte[] bufferTor = new byte[tor_buffer_size];
-                in.read(buffer, 0, buffer.length);
+                int n = in.read(buffer, 0, buffer.length);
+
 
                 if (new String(buffer).contains("https")) {
                     socketTor = Utilities.socks4aSocketConnection(remote_host, secureHttpingRequestPort, tor_host, tor_port);
+                } else if (new String(buffer).contains("ping")) {
+                    socketTor = Utilities.socks4aSocketConnection(remote_host, 80, tor_host, tor_port);
                 } else {
                     socketTor = Utilities.socks4aSocketConnection(remote_host, remote_port, tor_host, tor_port);
                 }
+                socketTor.setReceiveBufferSize(tor_buffer_size);
+                socketTor.setSendBufferSize(tor_buffer_size);
                 outTor = socketTor.getOutputStream();
                 outTor.flush();
                 inTor = socketTor.getInputStream();
 
                 System.err.println("Sending to httping: " + new String(buffer));
-                outTor.write(buffer, 0, buffer.length);
-                inTor.read(bufferTor);
-                out.write(bufferTor);
+                outTor.write(buffer, 0, n);
                 outTor.flush();
 
+                inTor.read(bufferTor, 0, bufferTor.length);
+
+                out.write(bufferTor, 0, bufferTor.length);
+                out.write("\r\n\r\n".getBytes());
+
+                out.flush();
                 socketTor.close();
             } else {
                 System.err.println("TIR-MMRT test connection :" + my_address + " ---> " + bypassAddress);
@@ -224,9 +232,10 @@ public class TIRMMRT {
                 byte[] bufferTStunnel = new byte[tor_buffer_size];
                 in.read(buffer, 0, buffer.length);
                 System.err.println("Received from httping: " + new String(buffer));
-                outStunnel.write(buffer, 0, buffer.length);
-                inStunnel.read(bufferTStunnel);
+                outStunnel.write(buffer);
+                inStunnel.read(bufferTStunnel, 0, bufferTStunnel.length);
                 out.write(bufferTStunnel);
+                out.write("\r\n\r\n".getBytes());
 
                 out.flush();
                 outStunnel.flush();
@@ -249,17 +258,19 @@ public class TIRMMRT {
             if (bypassAddress.equals(my_address)) {
 
                 Socket clientSocket = Utilities.socks4aSocketConnection(remote_host, 5001, tor_host, tor_port);
-
+                clientSocket.setReceiveBufferSize(tor_buffer_size);
+                clientSocket.setSendBufferSize(tor_buffer_size);
                 OutputStream out = clientSocket.getOutputStream();
                 out.flush();
 
-                while ((in.read(buffer, 0, buffer.length)) != -1) {
-                    System.err.println("Sending to iperf: " + new String(buffer));
-                    out.write(buffer, 0, buffer.length);
+                int n;
+                while ((n = in.read(buffer, 0, buffer.length)) >= 0) {
+                    System.err.println("Sending iperf throughout Tor: " + new String(buffer));
+                    out.write(buffer, 0, n);
                 }
+                out.write("\r\n\r\n".getBytes());
                 out.flush();
                 clientSocket.close();
-
             } else {
                 System.err.println("TIR-MMRT test connection :" + my_address + " ---> " + bypassAddress);
 
@@ -267,10 +278,13 @@ public class TIRMMRT {
                 SSLSocket socket = (SSLSocket) factory.createSocket(bypassAddress.split(":")[0], test_stunnel_port_iperf);
                 socket.startHandshake();
                 OutputStream out = socket.getOutputStream();
+                out.flush();
 
-                while ((in.read(buffer, 0, buffer.length)) != -1) {
-                    System.err.println("Received from iperf: " + new String(buffer));
-                    out.write(buffer, 0, buffer.length);
+                int n;
+                while ((n = in.read(buffer, 0, buffer.length)) >= 0) {
+                    System.err.println("sending iperf to" + bypassAddress + ":" + new String(buffer));
+                    out.write(buffer, 0, n);
+                    Thread.sleep(5);
                 }
                 out.flush();
                 socket.close();
@@ -289,19 +303,23 @@ public class TIRMMRT {
     }
 
     private static void doTCP_TLS(Socket socket) {
-        try {
-            OutputStream out = socket.getOutputStream();
-            InputStream in = socket.getInputStream();
-            byte[] buffer = new byte[BUF_SIZE];
-            in.read(buffer);
-            String filePath = Http.parseHttpReply(new String(buffer))[1];
-            System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
-            byte[] data = bypass(filePath);
-            out.write(data, 0, data.length);
-            out.flush();
-            socket.close();
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (correlationTest) {
+            packetAnalysis(socket);
+        } else {
+            try {
+                OutputStream out = socket.getOutputStream();
+                InputStream in = socket.getInputStream();
+                byte[] buffer = new byte[BUF_SIZE];
+                in.read(buffer);
+                String filePath = Http.parseHttpReply(new String(buffer))[1];
+                System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
+                byte[] data = bypass(filePath);
+                out.write(data, 0, data.length);
+                out.flush();
+                socket.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -354,6 +372,55 @@ public class TIRMMRT {
             System.err.println("Unable to do DTLS");
         }
 
+    }
+
+    private static void packetAnalysis(Socket socket) {
+        try {
+            InputStream in = socket.getInputStream();
+
+            byte[] buffer = new byte[tor_buffer_size];
+            String my_address = local_host;
+
+            //Send through Tor
+            Socket clientSocket = Utilities.socks4aSocketConnection(remote_host, 3238, tor_host, tor_port);
+            OutputStream outTor = clientSocket.getOutputStream();
+            InputStream inTor = clientSocket.getInputStream();
+            outTor.flush();
+
+            SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+
+            Map<String, SSLSocket> stunnelsSockets = new HashMap<>();
+            for (String tir : tirmmrt_network) {
+                if (tir.equals("localhost")) continue;
+                SSLSocket socketStunnel = (SSLSocket) factory.createSocket(tir.split(":")[0], Integer.parseInt(stunnel_port));
+                stunnelsSockets.put(tir, socketStunnel);
+                socketStunnel.startHandshake();
+            }
+            byte[] bufferTor = new byte[clientSocket.getReceiveBufferSize()];
+            int n;
+            while ((n = in.read(buffer, 0, buffer.length)) >= 0) {
+                Thread.sleep(5);
+                if (bypassAddress.equals(my_address)) {
+                    outTor.write(buffer, 0, n);
+                    inTor.read(bufferTor);
+                    System.out.println(new String(bufferTor));
+                } else {
+                    System.err.println("TIR-MMRT test connection :" + my_address + " ---> " + bypassAddress);
+
+                    OutputStream outStunnel = stunnelsSockets.get(bypassAddress).getOutputStream();
+
+                    outStunnel.write(buffer, 0, n);
+                }
+            }
+            for (SSLSocket stunnel : stunnelsSockets.values()) {
+                stunnel.close();
+            }
+            outTor.close();
+            clientSocket.close();
+            socket.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static void readConfigurationFiles() throws FileNotFoundException {
@@ -435,13 +502,14 @@ public class TIRMMRT {
 
         out.write(String.format("GET %s HTTP/1.1", path.trim()).getBytes());
 
-        int n = 0;
+        int n;
         byte[] buffer = new byte[BUF_SIZE];
         while ((n = in.read(buffer, 0, buffer.length)) != -1) {
             //System.out.write(buffer, 0, n);
             baos.write(buffer, 0, n);
 
         }
+
         return baos.toByteArray();
     }
 
@@ -477,7 +545,8 @@ public class TIRMMRT {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         Socket clientSocket = Utilities.socks4aSocketConnection(remoteAddress, remotePort, tor_host, tor_port);
-
+        clientSocket.setReceiveBufferSize(tor_buffer_size);
+        clientSocket.setSendBufferSize(tor_buffer_size);
         OutputStream out = clientSocket.getOutputStream();
         out.flush();
 

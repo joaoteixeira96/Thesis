@@ -7,7 +7,7 @@
     <groupId>com.joaoteixeira</groupId>
     <artifactId>TIR_MMRT</artifactId>
     <version>1.0</version>
-    <name>TIRMMRT</name>
+    <name>TIR_MMRT</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -16,7 +16,6 @@
         <java.version>1.11</java.version>
     </properties>
 
-
     <repositories>
         <repository>
             <id>jitpack.io</id>
@@ -24,9 +23,8 @@
         </repository>
     </repositories>
 
-
     <build>
-        <finalName>TIRMMRT</finalName>
+        <finalName>TIR_MMRT</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -81,25 +79,9 @@
             <version>4.5.13</version>
         </dependency>
         <dependency>
-            <groupId>org.silvertunnel-ng</groupId>
-            <artifactId>netlib</artifactId>
-            <version>LATEST</version>
+            <groupId>com.github.thaliproject</groupId>
+            <artifactId>Tor_Onion_Proxy_Library</artifactId>
+            <version>0.0.2</version>
         </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.25</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.7.25</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.PanagiotisDrakatos</groupId>
-            <artifactId>T0rlib4j</artifactId>
-            <version>1.0.2</version>
-        </dependency>
-
     </dependencies>
 </project>

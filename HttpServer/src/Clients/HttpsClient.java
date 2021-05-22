@@ -71,8 +71,9 @@ public class HttpsClient {
                     baos.write(input.getBytes());
                     fileSize += input.getBytes().length;
                 }
-                header.append("Content-Length: ").append(baos.size()).append("\r\n\r\n");
+                header.append("Content-Length: ").append(baos.size() + "\r\n").append("\r\n\r\n");
                 out.write(header.toString().getBytes());
+                out.flush();
                 br.close();
 
             } catch (IOException e) {
