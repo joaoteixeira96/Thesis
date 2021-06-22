@@ -22,6 +22,8 @@ public class TIRMMRT {
     public static final int BUF_SIZE = 1024;
     public static final int N_THREADS = 8;
     public static final int secureHttpingRequestPort = 2238;
+    public static final int PACKET_ANALYSIS_PORT = 3238;
+    public static final int PERTURBATION_DELAY_PERCENTAGE = 20;
 
     public static String local_host;
     public static int local_port_unsecure;
@@ -47,10 +49,10 @@ public class TIRMMRT {
     public static int test_port_httping;
     public static int test_stunnel_port_httping;
 
+    public static int test_port_analytics;
+    public static int test_stunnel_port_analytics;
+
     public static int number_of_tirmmrt;
-
-    public static final boolean correlationTest = true;
-
 
     public static void main(String[] args) throws FileNotFoundException {
         System.setProperty("javax.net.ssl.trustStore", "./keystore/tirmmrts");
@@ -58,7 +60,6 @@ public class TIRMMRT {
 
         readConfigurationFiles();
         bypassTriggeredTimer();
-
 
         // TCP
         new Thread(() -> {
@@ -175,6 +176,28 @@ public class TIRMMRT {
                 }
             }
         }).start();
+
+        // Packet Analysis test
+        new Thread(() -> {
+            ExecutorService executor = null;
+            try (ServerSocket ss = new ServerSocket(test_port_analytics)) {
+                executor = Executors.newFixedThreadPool(N_THREADS);
+                System.out.println("Packet Analysis proxy is listening on port " + test_port_analytics);
+                while (true) {
+                    Socket clientSock = ss.accept();
+                    packetAnalysis(clientSock);
+                    clientSock.close();
+                }
+            } catch (IOException ioe) {
+                System.err.println("Cannot open the port on Packet Analysis");
+                ioe.printStackTrace();
+            } finally {
+                System.out.println("Closing Packet Analysis server");
+                if (executor != null) {
+                    executor.shutdown();
+                }
+            }
+        }).start();
     }
 
     private static void measureTestHttping(Socket socket) {
@@ -201,7 +224,7 @@ public class TIRMMRT {
                 } else if (new String(buffer).contains("ping")) {
                     socketTor = Utilities.socks4aSocketConnection(remote_host, 80, tor_host, tor_port);
                 } else {
-                    socketTor = Utilities.socks4aSocketConnection(remote_host, remote_port, tor_host, tor_port);
+                    socketTor = Utilities.socks4aSocketConnection(remote_host, 5000, tor_host, tor_port);
                 }
                 socketTor.setReceiveBufferSize(tor_buffer_size);
                 socketTor.setSendBufferSize(tor_buffer_size);
@@ -216,7 +239,7 @@ public class TIRMMRT {
                 inTor.read(bufferTor, 0, bufferTor.length);
 
                 out.write(bufferTor, 0, bufferTor.length);
-                out.write("\r\n\r\n".getBytes());
+                //out.write("\r\n\r\n".getBytes());
 
                 out.flush();
                 socketTor.close();
@@ -284,7 +307,7 @@ public class TIRMMRT {
                 while ((n = in.read(buffer, 0, buffer.length)) >= 0) {
                     System.err.println("sending iperf to" + bypassAddress + ":" + new String(buffer));
                     out.write(buffer, 0, n);
-                    Thread.sleep(5);
+                    Thread.sleep(5); // Avoid traffic congestion
                 }
                 out.flush();
                 socket.close();
@@ -295,6 +318,10 @@ public class TIRMMRT {
         }
     }
 
+    private static double addJitterPerturbation(int arrival_time) {
+        double delay_percentage = (new Random().nextInt(PERTURBATION_DELAY_PERCENTAGE) / 100.0) + 1;
+        return delay_percentage * arrival_time;
+    }
 
     private static ServerSocket getSecureSocketTLS(int port) throws IOException {
         ServerSocketFactory ssf = getServerSocketFactory();
@@ -303,23 +330,19 @@ public class TIRMMRT {
     }
 
     private static void doTCP_TLS(Socket socket) {
-        if (correlationTest) {
-            packetAnalysis(socket);
-        } else {
-            try {
-                OutputStream out = socket.getOutputStream();
-                InputStream in = socket.getInputStream();
-                byte[] buffer = new byte[BUF_SIZE];
-                in.read(buffer);
-                String filePath = Http.parseHttpReply(new String(buffer))[1];
-                System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
-                byte[] data = bypass(filePath);
-                out.write(data, 0, data.length);
-                out.flush();
-                socket.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        try {
+            OutputStream out = socket.getOutputStream();
+            InputStream in = socket.getInputStream();
+            byte[] buffer = new byte[BUF_SIZE];
+            in.read(buffer);
+            String filePath = Http.parseHttpReply(new String(buffer))[1];
+            System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
+            byte[] data = bypass(filePath);
+            out.write(data, 0, data.length);
+            out.flush();
+            socket.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -343,7 +366,7 @@ public class TIRMMRT {
                     DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
                     socket.send(sendPacket);
                     bytesSent += BUF_SIZE;
-                    Thread.sleep(1); //For big files
+                    Thread.sleep(5); // Avoid traffic congestion
                 }
                 byte[] endTransmission = "terminate_packet_receive".getBytes();
                 socket.send(new DatagramPacket(endTransmission, endTransmission.length, receivePacket.getAddress(), receivePacket.getPort()));
@@ -382,39 +405,32 @@ public class TIRMMRT {
             String my_address = local_host;
 
             //Send through Tor
-            Socket clientSocket = Utilities.socks4aSocketConnection(remote_host, 3238, tor_host, tor_port);
+            Socket clientSocket = Utilities.socks4aSocketConnection(remote_host, PACKET_ANALYSIS_PORT, tor_host, tor_port);
+            System.out.println("COVERT packets sent to TOR proxy using port: " + clientSocket.getLocalPort());
             OutputStream outTor = clientSocket.getOutputStream();
-            InputStream inTor = clientSocket.getInputStream();
             outTor.flush();
 
             SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
 
-            Map<String, SSLSocket> stunnelsSockets = new HashMap<>();
+            Map<String, SSLSocket> stunnelSockets = new HashMap<>();
             for (String tir : tirmmrt_network) {
                 if (tir.equals("localhost")) continue;
-                SSLSocket socketStunnel = (SSLSocket) factory.createSocket(tir.split(":")[0], Integer.parseInt(stunnel_port));
-                stunnelsSockets.put(tir, socketStunnel);
+                SSLSocket socketStunnel = (SSLSocket) factory.createSocket(tir.split(":")[0], test_stunnel_port_analytics);
+                stunnelSockets.put(tir, socketStunnel);
                 socketStunnel.startHandshake();
             }
-            byte[] bufferTor = new byte[clientSocket.getReceiveBufferSize()];
-            int n;
-            while ((n = in.read(buffer, 0, buffer.length)) >= 0) {
-                Thread.sleep(5);
+
+            while ((in.read(buffer, 0, buffer.length)) >= 0) {
+                Thread.sleep(15); // Avoid traffic congestion
                 if (bypassAddress.equals(my_address)) {
-                    outTor.write(buffer, 0, n);
-                    inTor.read(bufferTor);
-                    System.out.println(new String(bufferTor));
+                    outTor.write(buffer);
                 } else {
                     System.err.println("TIR-MMRT test connection :" + my_address + " ---> " + bypassAddress);
-
-                    OutputStream outStunnel = stunnelsSockets.get(bypassAddress).getOutputStream();
-
-                    outStunnel.write(buffer, 0, n);
+                    OutputStream outStunnel = stunnelSockets.get(bypassAddress).getOutputStream();
+                    outStunnel.write(buffer);
                 }
             }
-            for (SSLSocket stunnel : stunnelsSockets.values()) {
-                stunnel.close();
-            }
+            outTor.flush();
             outTor.close();
             clientSocket.close();
             socket.close();
@@ -446,6 +462,8 @@ public class TIRMMRT {
             test_stunnel_port_httping = Integer.parseInt(prop.getProperty("test_stunnel_port_httping"));
             number_of_tirmmrt = Integer.parseInt(prop.getProperty("number_of_tirmmrt"));
             tor_buffer_size = Integer.parseInt(prop.getProperty("tor_buffer_size"));
+            test_port_analytics = Integer.parseInt(prop.getProperty("test_port_analytics"));
+            test_stunnel_port_analytics = Integer.parseInt(prop.getProperty("test_stunnel_port_analytics"));
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -545,6 +563,7 @@ public class TIRMMRT {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         Socket clientSocket = Utilities.socks4aSocketConnection(remoteAddress, remotePort, tor_host, tor_port);
+        System.out.println("REGULAR packets sent to TOR proxy using port: " + clientSocket.getLocalPort());
         clientSocket.setReceiveBufferSize(tor_buffer_size);
         clientSocket.setSendBufferSize(tor_buffer_size);
         OutputStream out = clientSocket.getOutputStream();

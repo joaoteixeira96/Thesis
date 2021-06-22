@@ -81,7 +81,6 @@ public class HttpServer {
                     int n;
                     byte[] buffer = new byte[clientSock.getReceiveBufferSize()];
                     while ((n = in.read(buffer, 0, buffer.length)) >= 0) {
-                        out.write(("OK" + "\r\n\r\n").getBytes());
                     }
                     // close IO streams, then socket
                     System.err.println("Closing connection with client");

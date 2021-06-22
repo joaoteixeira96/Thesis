@@ -23,9 +23,9 @@ public class AutomatedClient {
     public static final int BUF_SIZE = 1024;
 
     public static final List<String> files =
-            List.of("/Files/large"); // "/Files/large", "/Files/small", "/Files/book.pdf",
+            List.of("/Files/large", "/Files/book.pdf", "/Files/small"); // "/Files/large", "/Files/small", "/Files/book.pdf",
     public static final List<String> protocols =
-            List.of("tcp", "tls", "udp", "dtls"); //"tcp", "tls","dtls"
+            List.of("tcp", "tls", "udp", "dtls"); //
 
     public static String command = "";
 
