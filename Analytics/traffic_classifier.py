@@ -1,4 +1,5 @@
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import os
@@ -21,6 +22,7 @@ from sklearn.model_selection import cross_val_score
 
 np.random.seed(1)
 random.seed(1)
+
 
 def gatherAllData(data_folder, cfg, dataset_fraction):
     # Load Datasets
@@ -72,6 +74,8 @@ def gatherAllData(data_folder, cfg, dataset_fraction):
     for i in range(0, len(fac_data)):
         fac_data[i].pop()
 
+    # fac_data= fac_data[0:len(reg_data)]
+
     # Create training sets by combining the randomly selected samples from each class
     train_x = reg_data + fac_data
     train_y = reg_labels + fac_labels
@@ -87,6 +91,7 @@ def gatherAllData(data_folder, cfg, dataset_fraction):
 
     return x_shuf, y_shuf, features_id
 
+
 def runClassification_CV(data_folder, feature_set, cfg, classifier):
     print "Gather dataset"
     dataset_fraction = 1.0
@@ -97,7 +102,7 @@ def runClassification_CV(data_folder, feature_set, cfg, classifier):
 
     # Report Cross-Validation Accuracy
     # scores = cross_val_score(model, np.asarray(train_x), np.asarray(train_y), cv=10)
-    print clf_name
+    # print clf_name
     # print "Avg. Accuracy: " + str(sum(scores)/float(len(scores)))
 
     cv = KFold(n_splits=10)
@@ -122,7 +127,9 @@ def runClassification_CV(data_folder, feature_set, cfg, classifier):
         test_times.append(end_test - start_test)
 
         fpr, tpr, thresholds = roc_curve(np.asarray(train_y)[test], probas_[:, 1])
+
         tprs.append(interp(mean_fpr, fpr, tpr))
+
         tprs[-1][0] = 0.0
         roc_auc = auc(fpr, tpr)
         aucs.append(roc_auc)
@@ -188,7 +195,7 @@ def runClassification_CV(data_folder, feature_set, cfg, classifier):
     plt.setp(ax1.get_xticklabels(), fontsize=14)
     plt.setp(ax1.get_yticklabels(), fontsize=14)
 
-    fig.savefig('xgBoost/' + feature_set + "/ROC_" + clf_name + "_" + cfg[1] + ".pdf")   # save the figure to file
+    fig.savefig('xgBoost/' + feature_set + "/ROC_" + clf_name + "_" + cfg[1] + ".pdf")  # save the figure to file
     plt.close(fig)
 
     mean_importances = []
@@ -205,11 +212,12 @@ def runClassification_CV(data_folder, feature_set, cfg, classifier):
     # for f in f_imp[:20]:
     #    print "Importance: %f, Feature: %s" % (f[0], f[1])
 
+
 if __name__ == "__main__":
 
     cfgs = [
-        ["in.csv",
-         "out.csv"]]
+        ["regular.pcap.csv",
+         "chaff.pcap.csv"]]
 
     if not os.path.exists('xgBoost'):
         os.makedirs('xgBoost')
@@ -218,7 +226,7 @@ if __name__ == "__main__":
         [XGBClassifier(), "XGBoost"]
     ]
 
-    feature_set = '1'
+    feature_set = '3_4'
     data_folder = '/home/joaoteixeira/git/Thesis/Analytics/extractedFeatures/' + feature_set + '/'
     if not os.path.exists('xgBoost/' + feature_set):
         os.makedirs('xgBoost/' + feature_set)
