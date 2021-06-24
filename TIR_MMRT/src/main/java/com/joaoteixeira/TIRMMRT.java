@@ -11,7 +11,10 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -24,6 +27,8 @@ public class TIRMMRT {
     public static final int secureHttpingRequestPort = 2238;
     public static final int PACKET_ANALYSIS_PORT = 3238;
     public static final int PERTURBATION_DELAY_PERCENTAGE = 20;
+    public static final int MAX_PERTURBATION_DELAY_TIME_MS = 1000;
+    public static final int PING_PORT = 80;
 
     public static String local_host;
     public static int local_port_unsecure;
@@ -53,6 +58,8 @@ public class TIRMMRT {
     public static int test_stunnel_port_analytics;
 
     public static int number_of_tirmmrt;
+
+    public static ConcurrentLinkedQueue<Instant> arrival_times = new ConcurrentLinkedQueue<>();
 
     public static void main(String[] args) throws FileNotFoundException {
         System.setProperty("javax.net.ssl.trustStore", "./keystore/tirmmrts");
@@ -222,7 +229,7 @@ public class TIRMMRT {
                 if (new String(buffer).contains("https")) {
                     socketTor = Utilities.socks4aSocketConnection(remote_host, secureHttpingRequestPort, tor_host, tor_port);
                 } else if (new String(buffer).contains("ping")) {
-                    socketTor = Utilities.socks4aSocketConnection(remote_host, 80, tor_host, tor_port);
+                    socketTor = Utilities.socks4aSocketConnection(remote_host, PING_PORT, tor_host, tor_port);
                 } else {
                     socketTor = Utilities.socks4aSocketConnection(remote_host, 5000, tor_host, tor_port);
                 }
@@ -318,9 +325,16 @@ public class TIRMMRT {
         }
     }
 
-    private static double addJitterPerturbation(int arrival_time) {
+    private static void addJitterPerturbation() throws InterruptedException {
+        if (arrival_times == null || arrival_times.isEmpty()) return;
+        Instant arrival_time = arrival_times.poll();
         double delay_percentage = (new Random().nextInt(PERTURBATION_DELAY_PERCENTAGE) / 100.0) + 1;
-        return delay_percentage * arrival_time;
+        Duration interval_arrival_time = Duration.between(arrival_time, Instant.now());
+        double interval_arrival_time_percentage = interval_arrival_time.toMillis() * delay_percentage;
+        if (interval_arrival_time_percentage < MAX_PERTURBATION_DELAY_TIME_MS) {
+            System.out.println("Interval between packets in milliseconds: " + interval_arrival_time.toMillis() + " with Sleep thread time: " + interval_arrival_time_percentage);
+            Thread.sleep((int) interval_arrival_time_percentage);
+        }
     }
 
     private static ServerSocket getSecureSocketTLS(int port) throws IOException {
@@ -335,12 +349,17 @@ public class TIRMMRT {
             InputStream in = socket.getInputStream();
             byte[] buffer = new byte[BUF_SIZE];
             in.read(buffer);
+
+            addJitterPerturbation();
+            arrival_times.add(Instant.now());
+
             String filePath = Http.parseHttpReply(new String(buffer))[1];
             System.out.println("File request path: " + filePath + " from " + socket.getInetAddress() + ":" + socket.getPort());
             byte[] data = bypass(filePath);
             out.write(data, 0, data.length);
             out.flush();
             socket.close();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -406,7 +425,7 @@ public class TIRMMRT {
 
             //Send through Tor
             Socket clientSocket = Utilities.socks4aSocketConnection(remote_host, PACKET_ANALYSIS_PORT, tor_host, tor_port);
-            System.out.println("COVERT packets sent to TOR proxy using port: " + clientSocket.getLocalPort());
+            //System.out.println("COVERT packets sent to TOR proxy using port: " + clientSocket.getLocalPort());  //TESTING PURPOSE
             OutputStream outTor = clientSocket.getOutputStream();
             outTor.flush();
 
@@ -563,7 +582,7 @@ public class TIRMMRT {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         Socket clientSocket = Utilities.socks4aSocketConnection(remoteAddress, remotePort, tor_host, tor_port);
-        System.out.println("REGULAR packets sent to TOR proxy using port: " + clientSocket.getLocalPort());
+        //System.out.println("REGULAR packets sent to TOR proxy using port: " + clientSocket.getLocalPort()); // TESTING PURPOSE
         clientSocket.setReceiveBufferSize(tor_buffer_size);
         clientSocket.setSendBufferSize(tor_buffer_size);
         OutputStream out = clientSocket.getOutputStream();

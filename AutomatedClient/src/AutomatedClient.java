@@ -25,7 +25,7 @@ public class AutomatedClient {
     public static final List<String> files =
             List.of("/Files/large", "/Files/book.pdf", "/Files/small"); // "/Files/large", "/Files/small", "/Files/book.pdf",
     public static final List<String> protocols =
-            List.of("tcp", "tls", "udp", "dtls"); //
+            List.of("tcp"); // "tls", "udp", "dtls"
 
     public static String command = "";
 
