@@ -328,7 +328,6 @@ public class TIRMMRT {
     }
 
     private static synchronized void addJitterPerturbation() throws InterruptedException {
-        System.out.println("Arrival time sizes" + arrival_times.size());
         if (arrival_times == null || arrival_times.isEmpty()) return;
         Instant arrival_time = arrival_times.poll();
         double delay_percentage = (new Random().nextInt(PERTURBATION_DELAY_PERCENTAGE) / 100.0) + 1;
