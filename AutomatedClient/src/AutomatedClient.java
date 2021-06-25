@@ -14,7 +14,7 @@ import java.util.*;
 
 public class AutomatedClient {
     public static final String SPACE = " ";
-    public static final int TIMEOUT = 10000;
+    public static final int TIMEOUT = 50000;
     private static int COMMAND_MAX_TIMER = 15000;
     private static int COMMAND_MIN_TIMER = 5000;
     public static int remote_port_secure = 2000;
@@ -23,9 +23,9 @@ public class AutomatedClient {
     public static final int BUF_SIZE = 1024;
 
     public static final List<String> files =
-            List.of("/Files/large", "/Files/book.pdf", "/Files/small"); // "/Files/large", "/Files/small", "/Files/book.pdf",
+            List.of("/Files/large", "/Files/book.pdf", "/Files/small"); // "/Files/large", "/Files/small", ,
     public static final List<String> protocols =
-            List.of("tcp"); // "tls", "udp", "dtls"
+            List.of("tcp", "tls", "udp", "dtls"); // "tls", "udp", "dtls"
 
     public static String command = "";
 

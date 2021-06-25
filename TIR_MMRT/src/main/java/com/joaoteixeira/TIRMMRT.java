@@ -27,7 +27,7 @@ public class TIRMMRT {
     public static final int secureHttpingRequestPort = 2238;
     public static final int PACKET_ANALYSIS_PORT = 3238;
     public static final int PERTURBATION_DELAY_PERCENTAGE = 20;
-    public static final int MAX_PERTURBATION_DELAY_TIME_MS = 1000;
+    public static final int MAX_PERTURBATION_DELAY_TIME_MS = 5000;
     public static final int PING_PORT = 80;
 
     public static String local_host;
@@ -67,6 +67,8 @@ public class TIRMMRT {
 
         readConfigurationFiles();
         bypassTriggeredTimer();
+
+        arrival_times.add(Instant.now());
 
         // TCP
         new Thread(() -> {
@@ -325,14 +327,15 @@ public class TIRMMRT {
         }
     }
 
-    private static void addJitterPerturbation() throws InterruptedException {
+    private static synchronized void addJitterPerturbation() throws InterruptedException {
+        System.out.println("Arrival time sizes" + arrival_times.size());
         if (arrival_times == null || arrival_times.isEmpty()) return;
         Instant arrival_time = arrival_times.poll();
         double delay_percentage = (new Random().nextInt(PERTURBATION_DELAY_PERCENTAGE) / 100.0) + 1;
         Duration interval_arrival_time = Duration.between(arrival_time, Instant.now());
         double interval_arrival_time_percentage = interval_arrival_time.toMillis() * delay_percentage;
         if (interval_arrival_time_percentage < MAX_PERTURBATION_DELAY_TIME_MS) {
-            System.out.println("Interval between packets in milliseconds: " + interval_arrival_time.toMillis() + " with Sleep thread time: " + interval_arrival_time_percentage);
+            System.out.println("Interval between packets : " + interval_arrival_time.toMillis() + " , sleep thread set to: " + interval_arrival_time_percentage + " milliseconds");
             Thread.sleep((int) interval_arrival_time_percentage);
         }
     }
@@ -350,6 +353,7 @@ public class TIRMMRT {
             byte[] buffer = new byte[BUF_SIZE];
             in.read(buffer);
 
+            //Add perturbation before send to Tor
             addJitterPerturbation();
             arrival_times.add(Instant.now());
 
@@ -358,6 +362,7 @@ public class TIRMMRT {
             byte[] data = bypass(filePath);
             out.write(data, 0, data.length);
             out.flush();
+
             socket.close();
 
         } catch (Exception e) {
@@ -372,6 +377,10 @@ public class TIRMMRT {
         socket.receive(receivePacket);
         String filePath = new String(buf, StandardCharsets.UTF_8);
         System.out.println("File request path: " + filePath + " from " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+
+        //Add perturbation before send to Tor
+        addJitterPerturbation();
+        arrival_times.add(Instant.now());
         byte[] data = bypass(filePath);
 
         //send
@@ -403,6 +412,11 @@ public class TIRMMRT {
             SSLEngine engine = dtls.createSSLEngine(false);
             InetSocketAddress isa = dtls.handshake(engine, socket, null, "Server");
             String filePath = dtls.receiveAppData(engine, socket);
+
+            //Add perturbation before send to Tor
+            addJitterPerturbation();
+            arrival_times.add(Instant.now());
+
             byte[] data = bypass(filePath);
             //deliver up to nThread clients
             ExecutorService executor = null;
@@ -441,6 +455,11 @@ public class TIRMMRT {
 
             while ((in.read(buffer, 0, buffer.length)) >= 0) {
                 Thread.sleep(15); // Avoid traffic congestion
+
+                //Add perturbation before send to Tor
+                addJitterPerturbation();
+                arrival_times.add(Instant.now());
+
                 if (bypassAddress.equals(my_address)) {
                     outTor.write(buffer);
                 } else {
