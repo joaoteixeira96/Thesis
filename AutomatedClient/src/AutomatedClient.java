@@ -20,7 +20,7 @@ public class AutomatedClient {
     public static int remote_port_secure = 2000;
     public static int remote_port_unsecure = 1234;
     public static String remote_host = "127.0.0.1"; // 172.28.0.5 or 127.0.0.1;
-    public static final int BUF_SIZE = 1024;
+    public static final int BUF_SIZE = 4096;
 
     public static final List<String> files =
             List.of("/Files/large", "/Files/book.pdf", "/Files/small"); // "/Files/large", "/Files/small", ,
@@ -49,7 +49,7 @@ public class AutomatedClient {
             protocol = input[1];
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("Usage: filePath protocol(tcp,udp,tls,dtls)");
+            System.err.println("Usage: file protocol(tcp,udp,tls,dtls)");
             System.exit(1);
         }
         switch (protocol.toLowerCase()) {
