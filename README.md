@@ -21,7 +21,7 @@ To run our solution, its required: Java v11.0 or higher, Tor v0.4.4.6 or higher,
 
 Our laboratory setup assumes the existence of 1 local machine running a 64 bits Linux Ubuntu 20.04, vCore 4 (VPS, w/ dedicated 4-Cores) Processor, 8 GB of RAM, NVMe SSD 160 GB Storage and a minimum of 2 VMs running a 64 bits Linux Ubuntu 20.04, vCore 1 (VPS, w/ dedicated 1-Cores) Processor, 2 GB of RAM, NVMe SSD 40 GB Storage, running in separate physical machines. While this configuration may be adjusted to better suit your needs, this setup guide follows the details of the figure below. 
 
-### lab network setup
+### Lab network setup
 ![](https://github.com/joaoteixeira96/Thesis/Environment/EnvironmentSetup.png?raw=true)
 
 1. Configure Stunnel
