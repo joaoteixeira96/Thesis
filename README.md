@@ -8,7 +8,7 @@ This repository is split into six main folders:
 
 * <strong> Analytics </strong>: Holds our feature extraction and classification scripts.
 * <strong> AutomatedClient </strong>: Holds the code for the automated client.
-* <strong> Environment </strong>: Holds the JAR executable of the two type of clients, the TIR and the HttpServer for setting up our VMs & reproducing our lab environment. It also holds the Stunnel file configuration.
+* <strong> Environment </strong>: Holds the JAR executable of the two type of clients, the TIR and the HttpServer for setting up our VMs & reproducing our lab environment. It also holds the Stunnel file configuration file.
 * <strong> HttpServer </strong>: Holds the code of the HTTP file server.
 * <strong> InteractiveClient </strong>: Holds the code for the interactive client.
 * <strong> TIR </strong>: Holds the code for the TIR solution.
