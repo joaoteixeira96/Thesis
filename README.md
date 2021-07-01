@@ -26,7 +26,7 @@ Our laboratory setup assumes the existence of 1 local machine running a 64 bits 
 
 1. Configure Stunnel
 
-Before spinning up the VMs, we need to configure Stunnel service, for each machine with TIR installed, copy the /Environment/stunnel.conf file and paste into the default Stunnel configuration file path "/etc/stunnel/". Some parameters in the file must be changed according to the personal setup: <strong> cert </strong> is the certification file path which is located in /TIR/keystore/tir.cert, <strong> key </strong> is the private key file path which is located in /TIR/keystore/tir.pem, <strong> accept </strong> IP:port which Stunnel accepts connections, <strong> connect </strong> IP:port where the TIR wishes to connect to (another TIR).
+Before spinning up the VMs, we need to configure Stunnel service, for each machine with TIR installed, copy the /Environment/stunnel.conf file and paste into the default Stunnel configuration file path "/etc/stunnel/". Some parameters in the file must be changed according to the personal setup: <strong> cert </strong> is the certification file path which is located in /TIR/keystore/tir.cert (path must me changed), <strong> key </strong> is the private key file path which is located in /TIR/keystore/tir.pem (path must me changed), <strong> accept </strong> IP:port where Stunnel accepts connections (from other TIRs) (optinal change), <strong> connect </strong> IP:port where the Stunnel sends the request to be processed by the TIR (optinal change).
 
 2. Configure and Spin up Java JARs
 
