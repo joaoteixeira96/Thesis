@@ -36,7 +36,14 @@ The second step of this guide involves configure the VMs, minimum of 2 acting as
 * <strong> TIR </strong>: On a VM we install and run the executable JAR TIR located in /Environment/TIR by command "java -jar TIR.jar". Note that there are 2 folders name keystore, which holds the respective files (certificate, keys) for secure connections, and configuration containing 2 files: <strong> TIR_network </strong>: List of setup TIRs to connect and <strong> config.properties </strong>: All the TIR configurations: local_host - IP of the local host, local_port_unsecure - Port for TCP and UDP requests, local_port_secure - Port for TLS and DTLS requests, remote_host - IP of HttpServer, remote_port = Port of HttpServer, stunnel_port = Accept port parameter of Stunnel service, bypass_timer = Selection of random TIR timer in milliseconds, tor_buffer_size = packet chunk sizes for Tor, number_of_tirmmrt = number of TIR to select, and the rest of the configrations are for test purposes.
 * <strong> InteractiveClient </strong>: On a VM we install and run the executable JAR InteractiveClient located in /Environment/InteractiveClient by command "java -jar InteractiveClient.jar". Note that there are 2 folders name keystore, which holds the respective files (certificate, keys) for secure connections, and configuration containing 1 files: <strong> config.properties </strong>: All the client configurations: remote_host = IP of the respective TIR, remote_port_unsecure = Port of the respective TIR for TCP and UDP requests, remote_port_secure = Port of the respective TIR for TLS and DTLS requests.
 
-3. Client/TIR usage
+3. Client/TIR Usage
 
 Once we setup and run TIR and it's client on one machine, make sure Tor (with the default settings) and Stunnel service are running, we start requesting files to the HttpServer using interactive client shell, using requests like: (e.g, "/Files/small tcp"), this indicates we want a file called small using tcp protocol. Usage: File_Path protocol(tcp,udp,tls,dtls).
+
+4. Traffic Analysis
+
+The necessary scripts used for performing traffic analysis over the TIR connections are available in the analytics folder. These include:
+
+* <strong> feature_extractor.py </strong>: Extract features (packets size and inter-arrival times) from legitimate / TIR network traffic
+* <strong> traffic_classifier.py </strong>: Classify TIR flows using the state-of-the-art classifier (XGBOOST).
 
