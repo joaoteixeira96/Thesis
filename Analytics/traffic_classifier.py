@@ -1,6 +1,7 @@
 import matplotlib
 
 matplotlib.use('Agg')
+import sys
 import matplotlib.pyplot as plt
 import os
 import csv
@@ -74,22 +75,20 @@ def gatherAllData(data_folder, cfg, dataset_fraction):
     for i in range(0, len(fac_data)):
         fac_data[i].pop()
 
-    # fac_data= fac_data[0:len(reg_data)]
-
     # Create training sets by combining the randomly selected samples from each class
     train_x = reg_data + fac_data
     train_y = reg_labels + fac_labels
 
     # Shuffle positive/negative samples for CV purposes
-    x_shuf = []
-    y_shuf = []
-    index_shuf = range(len(train_x))
-    shuffle(index_shuf)
-    for i in index_shuf:
-        x_shuf.append(train_x[i])
-        y_shuf.append(train_y[i])
+    x_shuffle = []
+    y_shuffle = []
+    index_shuffle = range(len(train_x))
+    shuffle(index_shuffle)
+    for i in index_shuffle:
+        x_shuffle.append(train_x[i])
+        y_shuffle.append(train_y[i])
 
-    return x_shuf, y_shuf, features_id
+    return x_shuffle, y_shuffle, features_id
 
 
 def runClassification_CV(data_folder, feature_set, cfg, classifier):
@@ -100,12 +99,7 @@ def runClassification_CV(data_folder, feature_set, cfg, classifier):
     model = classifier[0]
     clf_name = classifier[1]
 
-    # Report Cross-Validation Accuracy
-    # scores = cross_val_score(model, np.asarray(train_x), np.asarray(train_y), cv=10)
-    # print clf_name
-    # print "Avg. Accuracy: " + str(sum(scores)/float(len(scores)))
-
-    cv = KFold(n_splits=10)
+    cv = KFold(10)
     tprs = []
     aucs = []
     mean_fpr = np.linspace(0, 1, 100)
@@ -137,7 +131,6 @@ def runClassification_CV(data_folder, feature_set, cfg, classifier):
         # Check feature importance in this fold
         f_imp = model.feature_importances_
         importances.append(f_imp)
-        # plt.plot(fpr, tpr, lw=1, alpha=0.3, label='ROC fold %d (AUC = %0.2f)' % (i, roc_auc))
         i += 1
 
     plt.plot([0, 1], [0, 1], linestyle='--', lw=2, color='r', label='Random Guess', alpha=.8)
@@ -149,31 +142,11 @@ def runClassification_CV(data_folder, feature_set, cfg, classifier):
     print "Training time (Avg. fold): " + str(np.mean(train_times, axis=0))
     print "Test time (Avg. fold): " + str(np.mean(test_times, axis=0))
 
-    unblock70 = True
-    unblock80 = True
-    unblock90 = True
-    unblock95 = True
-    for n, i in enumerate(mean_tpr):
-        if (i >= 0.7 and unblock70):
-            print '70%  TPR  = ' + "{0:.3f}".format(mean_fpr[n])
-            unblock70 = False
-        if (i >= 0.8 and unblock80):
-            print '80%  TPR  = ' + "{0:.3f}".format(mean_fpr[n])
-            unblock80 = False
-        if (i >= 0.9 and unblock90):
-            print '90%  TPR  = ' + "{0:.3f}".format(mean_fpr[n])
-            unblock90 = False
-        if (i >= 0.95 and unblock95):
-            print '95%  TPR  = ' + "{0:.3f}".format(mean_fpr[n])
-            unblock95 = False
-
     # Figure properties
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
 
     std_auc = np.std(aucs)
-    np.save('xgBoost/' + feature_set + "/ROC_" + clf_name + "_" + cfg[1] + "_Sensitivity", np.array(mean_tpr))
-    np.save('xgBoost/' + feature_set + "/ROC_" + clf_name + "_" + cfg[1] + "_Specificity", np.array(mean_fpr))
 
     plt.plot(mean_fpr, mean_tpr, color='b', label=r'Mean ROC (AUC = %0.2f $\pm$ %0.3f)' % (mean_auc, std_auc), lw=2,
              alpha=.8)
@@ -198,26 +171,18 @@ def runClassification_CV(data_folder, feature_set, cfg, classifier):
     fig.savefig('xgBoost/' + feature_set + "/ROC_" + clf_name + "_" + cfg[1] + ".pdf")  # save the figure to file
     plt.close(fig)
 
-    mean_importances = []
-    for n in range(0, len(importances[0])):
-        mean_imp = (importances[0][n] + importances[1][n] + importances[2][n] + importances[3][n] + importances[4][n] +
-                    importances[5][n] + importances[6][n] + importances[7][n] + importances[8][n] + importances[9][
-                        n]) / 10.0
-        mean_importances.append(mean_imp)
-    f_imp = zip(mean_importances, features_id)
-    f_imp.sort(key=lambda t: t[0], reverse=True)
-
-    np.save('xgBoost/' + feature_set + "/FeatureImportance_" + clf_name + "_" + cfg[1], np.array(f_imp))
-
-    # for f in f_imp[:20]:
-    #    print "Importance: %f, Feature: %s" % (f[0], f[1])
-
 
 if __name__ == "__main__":
 
+    if len(sys.argv) < 4:
+        print("Error: Please input sample folder location and two extracted features csv files")
+        sys.exit(0)
+
+    feature_set = sys.argv[1]
+
     cfgs = [
-        ["regular.pcap.csv",
-         "chaff.pcap.csv"]]
+        [sys.argv[2],
+         sys.argv[3]]]
 
     if not os.path.exists('xgBoost'):
         os.makedirs('xgBoost')
@@ -226,13 +191,12 @@ if __name__ == "__main__":
         [XGBClassifier(), "XGBoost"]
     ]
 
-    feature_set = '3_4'
     data_folder = '/home/joaoteixeira/git/Thesis/Analytics/extractedFeatures/' + feature_set + '/'
     if not os.path.exists('xgBoost/' + feature_set):
         os.makedirs('xgBoost/' + feature_set)
 
     print "\n================================================="
-    print "One-class SVM - Summary Statistic Features - Set1"
+    print "One-class SVM - Summary Statistic Features - Set"
     print "================================================="
     for cfg in cfgs:
         for classifier in classifiers:
