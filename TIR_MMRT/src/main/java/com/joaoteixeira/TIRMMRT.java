@@ -334,7 +334,6 @@ public class TIRMMRT {
         Duration interval_arrival_time = Duration.between(arrival_time, Instant.now());
         double interval_arrival_time_percentage = interval_arrival_time.toMillis() * delay_percentage;
         if (interval_arrival_time_percentage < MAX_PERTURBATION_DELAY_TIME_MS) {
-            System.out.println("Interval between packets : " + interval_arrival_time.toMillis() + " , sleep thread set to: " + interval_arrival_time_percentage + " milliseconds");
             Thread.sleep((int) interval_arrival_time_percentage);
         }
     }
@@ -438,7 +437,6 @@ public class TIRMMRT {
 
             //Send through Tor
             Socket clientSocket = Utilities.socks4aSocketConnection(remote_host, PACKET_ANALYSIS_PORT, tor_host, tor_port);
-            //System.out.println("COVERT packets sent to TOR proxy using port: " + clientSocket.getLocalPort());  //TESTING PURPOSE
             OutputStream outTor = clientSocket.getOutputStream();
             outTor.flush();
 
@@ -446,7 +444,7 @@ public class TIRMMRT {
 
             Map<String, SSLSocket> stunnelSockets = new HashMap<>();
             for (String tir : tirmmrt_network) {
-                if (tir.equals("localhost")) continue;
+                if (tir.equals("localhost") || tir.equals("127.0.0.1")) continue;
                 SSLSocket socketStunnel = (SSLSocket) factory.createSocket(tir.split(":")[0], test_stunnel_port_analytics);
                 stunnelSockets.put(tir, socketStunnel);
                 socketStunnel.startHandshake();
@@ -600,7 +598,6 @@ public class TIRMMRT {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         Socket clientSocket = Utilities.socks4aSocketConnection(remoteAddress, remotePort, tor_host, tor_port);
-        //System.out.println("REGULAR packets sent to TOR proxy using port: " + clientSocket.getLocalPort()); // TESTING PURPOSE
         clientSocket.setReceiveBufferSize(tor_buffer_size);
         clientSocket.setSendBufferSize(tor_buffer_size);
         OutputStream out = clientSocket.getOutputStream();
