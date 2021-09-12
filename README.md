@@ -15,7 +15,7 @@ This repository is split into six main folders:
 
 ## Requirements
 
-To run our solution, its required: Java v11.0 or higher, Tor v0.4.4.6 or higher, Stunnel v5.57 or higher.
+To run our solution, its required: Java v11.0 or higher, Tor v0.4.4.6 or higher, Stunnel v5.57 or higher and Python 2.
 
 ## Solution Setup
 
